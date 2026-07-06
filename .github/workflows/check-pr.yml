@@ -19,7 +19,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: amannn/action-semantic-pull-request@v5
+      # Dependabot titles its PRs "build: Bump ..." / "ci: Bump ..." with a capitalized
+      # "Bump" that can't be configured away, which trips the lowercase-subject rule below.
+      # Skip the check for Dependabot; the job still runs and reports "lint (pr)" green so the
+      # required status check stays satisfied.
+      - if: ${{ github.actor != 'dependabot[bot]' }}
+        uses: amannn/action-semantic-pull-request@v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
