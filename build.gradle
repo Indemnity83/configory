@@ -33,6 +33,14 @@ processResources {
     }
 }
 
+jar {
+    manifest {
+        attributes(
+                'FMLModType': 'GAMELIBRARY',
+                'Automatic-Module-Name': 'configory')
+    }
+}
+
 test {
     useJUnitPlatform()
 }

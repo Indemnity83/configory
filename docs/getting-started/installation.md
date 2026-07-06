@@ -34,6 +34,37 @@ dependencies {
 
 Browse all versions on the [releases page](https://github.com/Indemnity83/configory/releases).
 
+## As a dependency mod
+
+Configory ships as an **installed library mod**: one combined jar that loads on both **Fabric** and
+**NeoForge** and provides its classes to any mod that depends on it. Users install the Configory jar
+alongside your mod (installing it separately is preferred over bundling, so several mods can share a
+single copy).
+
+Declare the runtime dependency so the loader ensures Configory is present:
+
+**Fabric** — in your `fabric.mod.json`:
+
+```json
+"depends": {
+  "configory": "*"
+}
+```
+
+**NeoForge** — in your `META-INF/neoforge.mods.toml`:
+
+```toml
+[[dependencies.yourmodid]]
+modId = "configory"
+type = "required"
+versionRange = "[0.1,)"
+ordering = "NONE"
+side = "BOTH"
+```
+
+Configory has no Minecraft dependency and no version-specific code, so a single jar works across all
+supported Minecraft versions on both loaders.
+
 ## Requirements
 
 - **Java 21.** Configory targets the Java 21 toolchain.
