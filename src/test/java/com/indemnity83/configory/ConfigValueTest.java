@@ -2,6 +2,8 @@ package com.indemnity83.configory;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.google.gson.JsonNull;
+import com.google.gson.JsonObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -69,5 +71,17 @@ class ConfigValueTest {
     @Test
     void isPresentIgnoresType() {
         assertTrue(config.get("core.name").isPresent());
+    }
+
+    @Test
+    void isPresentIsFalseForExplicitJsonNull() {
+        InMemoryConfigStorage storage = new InMemoryConfigStorage();
+        JsonObject document = new JsonObject();
+        JsonPaths.set(document, ConfigPath.parse("core.blank"), JsonNull.INSTANCE);
+        storage.seed("core", document);
+        Config withNull = Config.create("host", storage);
+
+        assertFalse(withNull.get("core.blank").isPresent());
+        assertTrue(withNull.get("core.blank").isEmpty());
     }
 }
