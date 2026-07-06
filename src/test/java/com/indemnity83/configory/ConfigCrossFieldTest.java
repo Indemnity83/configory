@@ -106,4 +106,27 @@ class ConfigCrossFieldTest {
         ConfigValidationException ex = assertThrows(ConfigValidationException.class, () -> config.set(min, 12.0));
         assertTrue(ex.getMessage().contains("engines.max"));
     }
+
+    @Test
+    void minValueOfRejectsValueBelowReferencedKey() {
+        InMemoryConfigStorage storage = new InMemoryConfigStorage();
+        Config config = Config.create("engines", storage);
+        // engines.max must not fall below engines.min
+        ConfigKey<Double> min = config.define("engines.min")
+                .asDouble()
+                .defaultValue(3.0)
+                .min(0.0)
+                .register();
+        ConfigKey<Double> max = config.define("engines.max")
+                .asDouble()
+                .defaultValue(10.0)
+                .minValueOf(() -> min)
+                .register();
+        config.load();
+
+        assertDoesNotThrow(() -> config.set(max, 3.0), "equal to the bound is inclusive");
+        assertDoesNotThrow(() -> config.set(max, 8.0));
+        ConfigValidationException ex = assertThrows(ConfigValidationException.class, () -> config.set(max, 2.0));
+        assertTrue(ex.getMessage().contains("engines.min"));
+    }
 }
