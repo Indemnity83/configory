@@ -22,6 +22,10 @@ class ConfigHostSupportTest {
         public final String MOD_ID = "instance";
     }
 
+    static final class WithNonStringModId {
+        public static final int MOD_ID = 42;
+    }
+
     static final class WithNothing {}
 
     @Test
@@ -42,6 +46,11 @@ class ConfigHostSupportTest {
     @Test
     void nonStaticFieldIsIgnored() {
         assertThrows(ConfigException.class, () -> ConfigHostSupport.resolveModId(WithNonStaticModId.class));
+    }
+
+    @Test
+    void nonStringFieldIsIgnored() {
+        assertThrows(ConfigException.class, () -> ConfigHostSupport.resolveModId(WithNonStringModId.class));
     }
 
     @Test
