@@ -2,6 +2,7 @@ package com.indemnity83.configory;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -73,6 +74,16 @@ class ConfigPathTest {
     @Test
     void constructorRejectsEmptySegments() {
         assertThrows(ConfigException.class, () -> new ConfigPath("file", List.of()));
+    }
+
+    @Test
+    void constructorRejectsBlankSegment() {
+        assertThrows(ConfigException.class, () -> new ConfigPath("file", Arrays.asList("ok", "  ")));
+    }
+
+    @Test
+    void constructorRejectsNullSegment() {
+        assertThrows(ConfigException.class, () -> new ConfigPath("file", Arrays.asList("ok", null)));
     }
 
     @Test
