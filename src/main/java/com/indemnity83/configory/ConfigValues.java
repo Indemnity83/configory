@@ -43,8 +43,7 @@ final class ConfigValues {
                 }
                 case INT -> {
                     if (!primitive.isNumber()) throw new ConfigException("Expected int.");
-                    double number = primitive.getAsDouble();
-                    if (number % 1 != 0) throw new ConfigException("Expected whole number.");
+                    double number = requireWholeNumber(primitive);
                     if (number < Integer.MIN_VALUE || number > Integer.MAX_VALUE) {
                         throw new ConfigException("Int value out of range.");
                     }
@@ -52,8 +51,7 @@ final class ConfigValues {
                 }
                 case LONG -> {
                     if (!primitive.isNumber()) throw new ConfigException("Expected long.");
-                    double number = primitive.getAsDouble();
-                    if (number % 1 != 0) throw new ConfigException("Expected whole number.");
+                    requireWholeNumber(primitive);
                     yield (T) Long.valueOf(primitive.getAsLong());
                 }
                 case FLOAT -> {
@@ -68,5 +66,13 @@ final class ConfigValues {
         } catch (NumberFormatException e) {
             throw new ConfigException("Invalid numeric config value.", e);
         }
+    }
+
+    private static double requireWholeNumber(JsonPrimitive primitive) {
+        double number = primitive.getAsDouble();
+        if (number % 1 != 0) {
+            throw new ConfigException("Expected whole number.");
+        }
+        return number;
     }
 }
