@@ -24,13 +24,7 @@ final class ConfigValues {
 
     @SuppressWarnings("unchecked")
     static <T> T fromJson(JsonElement element, ConfigType type) {
-        if (element == null || element.isJsonNull()) {
-            throw new ConfigException("Config value is missing.");
-        }
-        if (!element.isJsonPrimitive()) {
-            throw new ConfigException("Config value must be a primitive.");
-        }
-        JsonPrimitive primitive = element.getAsJsonPrimitive();
+        JsonPrimitive primitive = requirePrimitive(element);
         try {
             return switch (type) {
                 case BOOLEAN -> {
@@ -66,6 +60,16 @@ final class ConfigValues {
         } catch (NumberFormatException e) {
             throw new ConfigException("Invalid numeric config value.", e);
         }
+    }
+
+    private static JsonPrimitive requirePrimitive(JsonElement element) {
+        if (element == null || element.isJsonNull()) {
+            throw new ConfigException("Config value is missing.");
+        }
+        if (!element.isJsonPrimitive()) {
+            throw new ConfigException("Config value must be a primitive.");
+        }
+        return element.getAsJsonPrimitive();
     }
 
     private static void requireNumber(JsonPrimitive primitive, String typeName) {
