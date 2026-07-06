@@ -28,17 +28,17 @@ final class JsonPaths {
     static void set(JsonObject root, ConfigPath path, JsonElement value) {
         JsonObject current = root;
         for (int i = 0; i < path.segments().size() - 1; i++) {
-            String segment = path.segments().get(i);
-            JsonElement existing = current.get(segment);
-            JsonObject child;
-            if (existing instanceof JsonObject object) {
-                child = object;
-            } else {
-                child = new JsonObject();
-                current.add(segment, child);
-            }
-            current = child;
+            current = childObject(current, path.segments().get(i));
         }
         current.add(path.segments().getLast(), value);
+    }
+
+    private static JsonObject childObject(JsonObject parent, String segment) {
+        if (parent.get(segment) instanceof JsonObject object) {
+            return object;
+        }
+        JsonObject child = new JsonObject();
+        parent.add(segment, child);
+        return child;
     }
 }
