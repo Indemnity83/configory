@@ -65,7 +65,7 @@ jobs:
           path: build/reports/tests/test/
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
           files: build/reports/jacoco/test/jacocoTestReport.xml
           # Coverage is informational, not a correctness gate. Keep this non-blocking so a
