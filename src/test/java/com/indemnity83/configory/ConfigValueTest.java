@@ -84,4 +84,21 @@ class ConfigValueTest {
         assertFalse(withNull.get("core.blank").isPresent());
         assertTrue(withNull.get("core.blank").isEmpty());
     }
+
+    @Test
+    void strictReadsBooleanAndLong() {
+        Config typed = Config.create("host", new InMemoryConfigStorage());
+        typed.define("core.enabled").asBoolean().defaultValue(true).register();
+        typed.define("core.count").asLong().defaultValue(42L).register();
+        typed.load();
+
+        assertTrue(typed.get("core.enabled").asBoolean());
+        assertEquals(42L, typed.get("core.count").asLong());
+    }
+
+    @Test
+    void fallbackReadReturnsStoredValueWhenPresent() {
+        assertEquals(2.5, config.get("core.speed").asDouble(9.9));
+        assertEquals("engine", config.get("core.name").asString("other"));
+    }
 }
