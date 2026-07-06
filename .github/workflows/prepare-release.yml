@@ -1,0 +1,20 @@
+name: Prepare Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          # Uses the default GITHUB_TOKEN. Note: release PRs opened by GITHUB_TOKEN do not
+          # trigger other workflows (e.g. Check Code). Swap in a PAT (secrets.PERSONAL_TOKEN)
+          # if you need CI to run on the release PR itself.
+          token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,67 @@
+plugins {
+    id 'java-library'
+    id 'com.diffplug.spotless' version '6.25.0'
+    id 'jacoco'
+}
+
+group = 'com.indemnity83'
+version = System.getenv("MOD_VERSION") ?: "dev"
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+dependencies {
+    api 'com.google.code.gson:gson:2.11.0'
+
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+spotless {
+    java {
+        palantirJavaFormat()
+        removeUnusedImports()
+        formatAnnotations()
+    }
+    format('misc') {
+        target '*.gradle', '*.md', '*.yml', '*.yaml', '*.json', '.gitignore'
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+
+tasks.register('lint') {
+    description = 'Check source formatting'
+    group = 'verification'
+    dependsOn 'spotlessCheck'
+}
+
+tasks.register('fix') {
+    description = 'Apply source formatting'
+    group = 'formatting'
+    dependsOn 'spotlessApply'
+}
+
+jacoco {
+    toolVersion = '0.8.12'
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}

@@ -1,0 +1,9 @@
+.gradle/
+build/
+config/
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/

@@ -1,0 +1,50 @@
+#!/bin/sh
+# Pre-commit hook to auto-format code with Spotless
+
+# Skip during sequencer operations (cherry-pick, rebase, merge, revert).
+# These prepare the commit message in the sequencer state; the stash below
+# wipes it, causing an empty-message abort. Such commits originate from
+# already-formatted commits, and the pre-push hook + CI verify formatting.
+if [ -f "$(git rev-parse --git-path CHERRY_PICK_HEAD)" ] || \
+   [ -f "$(git rev-parse --git-path MERGE_HEAD)" ] || \
+   [ -f "$(git rev-parse --git-path REVERT_HEAD)" ] || \
+   [ -d "$(git rev-parse --git-path rebase-merge)" ] || \
+   [ -d "$(git rev-parse --git-path rebase-apply)" ]; then
+    echo "Skipping Spotless (cherry-pick/rebase/merge/revert in progress)"
+    exit 0
+fi
+
+echo "Formatting code with Spotless..."
+
+# Exit early if no staged files
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+if [ -z "$STAGED_FILES" ]; then
+    exit 0
+fi
+
+# Stash unstaged changes, keeping staged changes in working tree
+git stash push --keep-index -u -m "pre-commit-auto-format" --quiet
+STASH_RESULT=$?
+
+# Run spotlessApply to format staged files
+if ! ./gradlew spotlessApply --daemon --quiet; then
+    # Restore stashed changes on failure
+    if [ $STASH_RESULT -eq 0 ]; then
+        git stash pop --quiet 2>/dev/null || true
+    fi
+    exit 1
+fi
+
+# Stage all formatted files (only originally staged files are in working tree after stash)
+git add -u
+
+# Restore unstaged changes
+if [ $STASH_RESULT -eq 0 ]; then
+    if ! git stash pop --quiet 2>/dev/null; then
+        echo "⚠️  Warning: Could not restore unstaged changes automatically."
+        echo "   Run 'git stash pop' to restore them manually."
+    fi
+fi
+
+echo "✅ Code formatted and staged"
+exit 0
