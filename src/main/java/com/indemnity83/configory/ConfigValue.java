@@ -9,7 +9,8 @@ import com.google.gson.JsonElement;
  * <p>This is the untyped, dynamic counterpart to {@link ConfigKey}-based access and is convenient
  * for commands, debug tools, and generated screens. Each strict accessor coerces the underlying JSON
  * to the requested type and throws {@link ConfigException} on a type mismatch, missing value, or out
- * of range number; the fallback overloads instead return the supplied default in those cases. Unlike
+ * of range number; the fallback overloads instead return the supplied default in those cases. Call
+ * {@link #isPresent()} to test for a value before a strict read. Unlike
  * {@link Config#get(ConfigKey)}, no definition constraints are applied here.
  */
 public final class ConfigValue {
@@ -29,6 +30,26 @@ public final class ConfigValue {
         this.config = config;
         this.path = path;
         this.element = element;
+    }
+
+    /**
+     * {@return whether a value is present at this path}
+     *
+     * <p>Presence means a non-null JSON value is stored here; it does not guarantee the value coerces
+     * to any particular type. Use this to branch before a strict {@code asX} read instead of catching
+     * {@link ConfigException} or supplying a fallback.
+     */
+    public boolean isPresent() {
+        return element != null && !element.isJsonNull();
+    }
+
+    /**
+     * {@return whether no value is present at this path}
+     *
+     * @see #isPresent()
+     */
+    public boolean isEmpty() {
+        return !isPresent();
     }
 
     /**
