@@ -2,6 +2,7 @@ package com.indemnity83.configory;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,6 +59,19 @@ class ConfigCoreTest {
     void getFallsBackToDefaultWhenAbsentBeforeLoad() {
         // No load() call: document is lazily empty, so the key resolves to its default.
         assertEquals(1.0f, config.get(speed));
+    }
+
+    @Test
+    void explicitJsonNullResolvesToDefaultAndIsRepairedOnLoad() {
+        JsonObject doc = new JsonObject();
+        JsonPaths.set(doc, ConfigPath.parse("core.speed_multiplier"), JsonNull.INSTANCE);
+        storage.seed("core", doc);
+
+        assertEquals(1.0f, config.get(speed));
+
+        config.load();
+        assertEquals(1.0f, config.get(speed));
+        assertTrue(config.dirtyFiles().contains("core"), "the null was repaired to the default");
     }
 
     @Test
