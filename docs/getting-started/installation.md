@@ -3,41 +3,36 @@
 Configory is a single-module Java library. It requires **Java 21** and pulls in **Gson** as an
 `api` dependency (so Gson is on your compile classpath transitively).
 
-> [!WARNING]
-> Configory is not yet published to Maven Central. Until a release is cut, the supported way to
-> depend on it is a source build via [JitPack](https://jitpack.io) against the `main` branch.
-> A published, versioned artifact is tracked in the project's issue tracker.
+Configory is published to the [Modrinth Maven](https://support.modrinth.com/en/articles/8801191-modrinth-maven).
+Add the repository and depend on it with the `maven.modrinth` group:
 
-## Gradle (JitPack)
-
-Add the JitPack repository and the dependency:
+## Gradle
 
 ```groovy
 repositories {
     mavenCentral()
-    maven { url 'https://jitpack.io' }
+    maven { url 'https://api.modrinth.com/maven' }
 }
 
 dependencies {
-    implementation 'com.github.Indemnity83:configory:main-SNAPSHOT'
+    implementation 'maven.modrinth:configory:%%VERSION%%'
 }
 ```
-
-Once tagged releases exist, replace `main-SNAPSHOT` with the tag, for example
-`com.github.Indemnity83:configory:v0.1.0`.
 
 ### Kotlin DSL
 
 ```kotlin
 repositories {
     mavenCentral()
-    maven("https://jitpack.io")
+    maven("https://api.modrinth.com/maven")
 }
 
 dependencies {
-    implementation("com.github.Indemnity83:configory:main-SNAPSHOT")
+    implementation("maven.modrinth:configory:%%VERSION%%")
 }
 ```
+
+Browse all versions on the [releases page](https://github.com/Indemnity83/configory/releases).
 
 ## Requirements
 

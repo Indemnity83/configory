@@ -3,7 +3,7 @@ name: Deploy Docs
 on:
   push:
     branches: [main]
-    paths: ['docs/**', '.github/workflows/pages.yml']
+    paths: ['docs/**', '.github/workflows/pages.yml', '.release-please-manifest.json']
   workflow_dispatch:
 
 concurrency:
@@ -30,6 +30,14 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
+
+      - name: Inject latest release version into docs
+        run: |
+          set -euo pipefail
+          VERSION="$(jq -r '."."' .release-please-manifest.json)"
+          [ -n "$VERSION" ] && [ "$VERSION" != "null" ] || { echo "no version in manifest"; exit 1; }
+          sed -i "s/%%VERSION%%/${VERSION}/g" docs/getting-started/installation.md
+          echo "Injected version $VERSION into installation docs"
 
       - name: Upload docs artifact
         uses: actions/upload-pages-artifact@v3
