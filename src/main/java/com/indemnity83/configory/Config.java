@@ -443,8 +443,6 @@ public final class Config {
      * not saved are lost.
      */
     public void discardAndReload() {
-        documents.clear();
-        dirtyFiles.clear();
         load();
     }
 
