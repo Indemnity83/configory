@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "configory",
+  "version": "${version}",
+  "name": "Configory",
+  "description": "Convention-based configuration for Minecraft mods.",
+  "authors": ["Kyle Klaus (@indemnity83)"],
+  "contact": {
+    "homepage": "https://indemnity83.github.io/configory/",
+    "issues": "https://github.com/Indemnity83/configory/issues",
+    "sources": "https://github.com/Indemnity83/configory"
+  },
+  "license": "MIT",
+  "environment": "*"
+}

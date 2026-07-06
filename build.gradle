@@ -26,6 +26,13 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+processResources {
+    inputs.property 'version', version
+    filesMatching(['fabric.mod.json', 'META-INF/neoforge.mods.toml']) {
+        expand version: version
+    }
+}
+
 test {
     useJUnitPlatform()
 }
