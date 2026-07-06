@@ -25,7 +25,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -46,7 +46,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -65,7 +65,7 @@ jobs:
           path: build/reports/tests/test/
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
           files: build/reports/jacoco/test/jacocoTestReport.xml
           # Coverage is informational, not a correctness gate. Keep this non-blocking so a
