@@ -544,12 +544,11 @@ public final class Config {
 
     private void applyDefaultsAndValidate() {
         for (ConfigDefinition<?> definition : definitions.values()) {
-            applyDefaultAndValidateUnchecked(definition);
+            validateOrApplyDefault(definition);
         }
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private <T> void applyDefaultAndValidateUnchecked(ConfigDefinition<T> definition) {
+    private <T> void validateOrApplyDefault(ConfigDefinition<T> definition) {
         JsonObject document = document(definition.path().file());
         JsonElement element = JsonPaths.get(document, definition.path());
         if (element == null || element.isJsonNull()) {
