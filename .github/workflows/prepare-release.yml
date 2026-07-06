@@ -14,5 +14,6 @@ jobs:
     steps:
       - uses: googleapis/release-please-action@v5
         with:
-          # GITHUB_TOKEN-opened release PRs don't trigger other workflows; use a PAT to run CI on them.
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # A PAT (not GITHUB_TOKEN) so the release-please PR runs CI and the published release
+          # triggers Build (Release). Events raised by GITHUB_TOKEN don't start other workflows.
+          token: ${{ secrets.PERSONAL_TOKEN }}

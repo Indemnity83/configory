@@ -1,0 +1,89 @@
+name: Build (Release)
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build (e.g., v0.1.0)"
+        required: true
+        type: string
+      publish:
+        description: "Actually publish (otherwise build only)"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Extract version
+        id: version
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          TAG="${INPUT_TAG:-$RELEASE_TAG}"
+          # release-please 'simple' tags look like v0.1.0 (or configory-v0.1.0); keep the trailing semver.
+          VERSION="${TAG##*v}"
+          {
+            echo "tag=$TAG"
+            echo "version=$VERSION"
+          } >> "$GITHUB_OUTPUT"
+          echo "📦 Tag: $TAG → version $VERSION"
+
+      - name: Build with Gradle
+        run: ./gradlew build --console=plain
+        env:
+          MOD_VERSION: ${{ steps.version.outputs.version }}
+
+      - name: Publish to Modrinth
+        # Skip publishing on a build-only workflow_dispatch (publish left unchecked).
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish }}
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-tag: ${{ steps.version.outputs.tag }}
+
+          name: "Configory v${{ steps.version.outputs.version }}"
+          version: ${{ steps.version.outputs.version }}
+          version-type: release
+
+          # Configory is loader-agnostic; the loaders and game versions are metadata Modrinth
+          # requires on every upload, not a real runtime constraint.
+          loaders: |
+            fabric
+            neoforge
+            forge
+            quilt
+          game-versions: ">=1.20"
+
+          files: |
+            build/libs/configory-${{ steps.version.outputs.version }}.jar
+            build/libs/configory-${{ steps.version.outputs.version }}-sources.jar
+
+          changelog: ${{ github.event.release.body || format('Release {0}', steps.version.outputs.version) }}
