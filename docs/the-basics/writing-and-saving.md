@@ -66,11 +66,24 @@ Set<String> files = config.dirtyFiles();   // e.g. ["core", "engines"]
 > Typed and string-path writes validate differently. `set(ConfigKey, value)` validates against
 > the key's constraints and throws `ConfigValidationException` if the value is invalid.
 > `set(String, value)` does **not** validate — it writes the raw value straight through, even
-> when a definition with constraints exists at that path. Reconciling this asymmetry (for example
-> a validating `trySet(...)`) is tracked in the project's issue tracker.
+> when a definition with constraints exists at that path. This is deliberate: a raw string write
+> lets tools persist the exact on-disk value.
 
-For dynamic tools that must validate user input today, read through the typed key's `set` path,
-or validate the input yourself before a string-path write. See
+To validate a write instead of writing raw, use `trySet(...)`. It checks the value against a
+definition's constraints and reports success rather than throwing — ideal for commands and other
+dynamic tools handling untrusted input:
+
+```java
+if (config.trySet("core.speed_multiplier", userInput)) {
+    config.save();   // accepted and persisted
+} else {
+    // rejected: out of range, wrong type, or otherwise invalid
+}
+```
+
+`trySet` accepts a string path or a typed key. When a definition exists at the path it coerces and
+validates the value, writing only if it passes; where no definition exists there are no constraints
+to apply, so the value is written and `true` is returned. See
 [Validation](digging-deeper/validation.md).
 
 ## Next steps

@@ -307,7 +307,9 @@ public final class Config {
      * changed.
      *
      * <p>This does not validate against any definition and does not write to disk. Chain
-     * {@link ConfigMutation#save()} on the result to persist just the affected file.
+     * {@link ConfigMutation#save()} on the result to persist just the affected file. Use
+     * {@link #trySet(String, Object)} instead to reject values that violate a definition's
+     * constraints.
      *
      * @param path a dotted path or bare key identifying the value
      * @param value the new value; must be a supported primitive type (boolean, String, int, long,
@@ -340,6 +342,55 @@ public final class Config {
         assertOwns(key);
         validateOrThrow(key, value);
         return setRaw(key.path(), value);
+    }
+
+    /**
+     * Writes a value at the given path only if it satisfies the constraints of a definition
+     * registered there, reporting success instead of throwing.
+     *
+     * <p>This is the validating counterpart to {@link #set(String, Object)} for dynamic tools —
+     * commands, debug menus, generated screens — that take untrusted input and need to branch on
+     * whether it was accepted. When a definition exists at the path, the value is coerced to the
+     * definition's type and checked against its constraints; if coercion or validation fails,
+     * nothing is written and {@code false} is returned. When no definition exists there are no
+     * constraints to apply, so the value is written and {@code true} is returned. As with
+     * {@link #set(String, Object)}, the change is in memory only until a {@code save}.
+     *
+     * @param path a dotted path or bare key identifying the value
+     * @param value the candidate value
+     * @return {@code true} if the value was valid and written, {@code false} if it was rejected
+     */
+    public boolean trySet(String path, Object value) {
+        ConfigPath configPath = ConfigPath.parse(path);
+        ConfigDefinition<?> definition = definitions.get(configPath);
+        if (definition != null && !isValidFor(definition, value)) {
+            return false;
+        }
+        setRaw(configPath, value);
+        return true;
+    }
+
+    /**
+     * Writes a typed value for a registered key only if it satisfies the key's constraints,
+     * reporting success instead of throwing.
+     *
+     * <p>The validating counterpart to {@link #set(ConfigKey, Object)}: on a constraint failure
+     * nothing is written and {@code false} is returned rather than a
+     * {@link ConfigValidationException}. The change is in memory only until a {@code save}.
+     *
+     * @param key a key registered with this config
+     * @param value the candidate value
+     * @param <T> the value type
+     * @return {@code true} if the value was valid and written, {@code false} if it was rejected
+     * @throws ConfigException if the key does not belong to this config
+     */
+    public <T> boolean trySet(ConfigKey<T> key, T value) {
+        assertOwns(key);
+        if (!key.definition().validate(value, this).valid()) {
+            return false;
+        }
+        setRaw(key.path(), value);
+        return true;
     }
 
     /**
@@ -539,5 +590,16 @@ public final class Config {
             throw new ConfigValidationException(
                     "Invalid config value at " + key.path().fullPath() + ": " + result.message());
         }
+    }
+
+    private <T> boolean isValidFor(ConfigDefinition<T> definition, Object value) {
+        T coerced;
+        try {
+            coerced =
+                    definition.valueClass().cast(ConfigValues.fromJson(ConfigValues.toJson(value), definition.type()));
+        } catch (ConfigException e) {
+            return false;
+        }
+        return definition.validate(coerced, this).valid();
     }
 }

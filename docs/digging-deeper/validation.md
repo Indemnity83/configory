@@ -50,8 +50,9 @@ Validation runs when:
 
 > [!ATTENTION]
 > Setting a value by **string path** (`set(String, value)`) does not run validation — only the
-> typed `set(ConfigKey, value)` does. See the note in
-> [Writing &amp; Saving](the-basics/writing-and-saving.md).
+> typed `set(ConfigKey, value)` does. To validate a string-path (or typed) write without throwing,
+> use `trySet(...)`, which writes only when the value passes and returns whether it did. See the
+> note in [Writing &amp; Saving](the-basics/writing-and-saving.md).
 
 ## What happens to invalid values
 

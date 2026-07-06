@@ -23,7 +23,6 @@ signal it belongs in a layer built *on* Configory, not inside it.
 
 Possible future additions, roughly in the spirit of the goals above:
 
-- `trySet(...)` for command and GUI validation
 - generated Markdown docs
 - generated JSON schema
 - config command helpers

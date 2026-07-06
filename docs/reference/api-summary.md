@@ -29,6 +29,8 @@ config.get(path);               // -> ConfigValue
 config.get(key);                // -> T
 config.set(path, value);        // -> ConfigMutation (no validation)
 config.set(key, value);         // -> ConfigMutation (validated)
+config.trySet(path, value);     // -> boolean (validates if a definition exists; no throw)
+config.trySet(key, value);      // -> boolean (validated; no throw)
 config.save();                  // save all dirty files
 config.save(file);              // save one file
 config.reload();                // safe reload
@@ -66,6 +68,10 @@ config.set("core.speed_multiplier", 3.0f).save();     // and persist the affecte
 
 config.set(Configs.SPEED_MULTIPLIER, 3.0f);           // runtime only, validated
 config.set(Configs.SPEED_MULTIPLIER, 3.0f).save();    // and persist
+
+if (config.trySet("core.speed_multiplier", input)) {  // validate untrusted input, no throw
+    config.save();
+}
 ```
 
 See [Writing &amp; Saving](the-basics/writing-and-saving.md).
