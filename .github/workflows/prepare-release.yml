@@ -12,7 +12,7 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         with:
           # Uses the default GITHUB_TOKEN. Note: release PRs opened by GITHUB_TOKEN do not
           # trigger other workflows (e.g. Check Code). Swap in a PAT (secrets.PERSONAL_TOKEN)
