@@ -346,21 +346,23 @@ public final class Config {
         JsonObject document = document(definition.path().file());
         JsonElement element = JsonPaths.get(document, definition.path());
         if (element == null || element.isJsonNull()) {
-            JsonPaths.set(document, definition.path(), ConfigValues.toJson(definition.defaultValue()));
-            dirtyFiles.add(definition.path().file());
+            writeDefault(document, definition);
             return;
         }
         try {
             T value = ConfigValues.fromJson(element, definition.type());
             ValidationResult result = definition.validate(value, this);
             if (!result.valid()) {
-                JsonPaths.set(document, definition.path(), ConfigValues.toJson(definition.defaultValue()));
-                dirtyFiles.add(definition.path().file());
+                writeDefault(document, definition);
             }
         } catch (ConfigException e) {
-            JsonPaths.set(document, definition.path(), ConfigValues.toJson(definition.defaultValue()));
-            dirtyFiles.add(definition.path().file());
+            writeDefault(document, definition);
         }
+    }
+
+    private void writeDefault(JsonObject document, ConfigDefinition<?> definition) {
+        JsonPaths.set(document, definition.path(), ConfigValues.toJson(definition.defaultValue()));
+        dirtyFiles.add(definition.path().file());
     }
 
     private void runSanitizeHooks() {
