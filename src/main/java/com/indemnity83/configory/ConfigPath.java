@@ -30,16 +30,15 @@ public record ConfigPath(String file, List<String> segments) {
 
     public static ConfigPath parse(String raw) {
         Objects.requireNonNull(raw, "raw");
-        // Limit -1 keeps trailing/leading empties so malformed paths like "foo." or ".foo"
-        // surface as blank segments instead of being silently dropped.
-        String[] parts = raw.split("\\.", -1);
+        int keepTrailingEmptyStrings = -1;
+        String[] parts = raw.split("\\.", keepTrailingEmptyStrings);
         for (String part : parts) {
             if (part.isBlank()) {
                 throw new ConfigException("Config path contains an empty segment: " + raw);
             }
         }
-        if (parts.length == 1) {
-            // A bare key (no dot) targets the default config file.
+        boolean bareKey = parts.length == 1;
+        if (bareKey) {
             return new ConfigPath(DEFAULT_FILE, List.of(parts[0]));
         }
         return new ConfigPath(parts[0], List.of(parts).subList(1, parts.length));

@@ -34,8 +34,7 @@ public final class ConfigBootstrap {
             Method method = entriesClass.getDeclaredMethod("bootstrap", Config.class);
             method.setAccessible(true);
             method.invoke(null, config);
-        } catch (NoSuchMethodException ignored) {
-            // Optional hook.
+        } catch (NoSuchMethodException noOptionalHook) {
         } catch (ReflectiveOperationException e) {
             throw new ConfigException("Failed to run config bootstrap for " + entriesClass.getName(), e);
         }

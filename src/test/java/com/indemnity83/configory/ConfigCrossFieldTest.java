@@ -88,7 +88,7 @@ class ConfigCrossFieldTest {
     void crossFieldConstraintReferencesAnotherKey() {
         InMemoryConfigStorage storage = new InMemoryConfigStorage();
         Config config = Config.create("engines", storage);
-        // stirling.min must not exceed stirling.max
+        // engines.min must not exceed engines.max
         ConfigKey<Double> max = config.define("engines.max")
                 .asDouble()
                 .defaultValue(10.0)
