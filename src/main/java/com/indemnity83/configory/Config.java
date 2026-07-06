@@ -405,15 +405,19 @@ public final class Config {
     public void load() {
         documents.clear();
         dirtyFiles.clear();
-        Set<String> files = new LinkedHashSet<>();
-        for (ConfigDefinition<?> definition : definitions.values()) {
-            files.add(definition.path().file());
-        }
-        for (String file : files) {
+        for (String file : referencedFiles()) {
             documents.put(file, storage.load(file));
         }
         applyDefaultsAndValidate();
         runSanitizeHooks();
+    }
+
+    private Set<String> referencedFiles() {
+        Set<String> files = new LinkedHashSet<>();
+        for (ConfigDefinition<?> definition : definitions.values()) {
+            files.add(definition.path().file());
+        }
+        return files;
     }
 
     /**
