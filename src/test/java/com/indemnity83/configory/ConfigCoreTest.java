@@ -103,6 +103,59 @@ class ConfigCoreTest {
     }
 
     @Test
+    void trySetByStringPathAcceptsValidValue() {
+        config.load();
+        assertTrue(config.trySet("core.speed_multiplier", 5.0f));
+        assertEquals(5.0f, config.get(speed));
+    }
+
+    @Test
+    void trySetByStringPathRejectsOutOfRangeValueAndWritesNothing() {
+        config.load();
+        config.save();
+        assertFalse(config.trySet("core.speed_multiplier", 99.0f));
+        assertEquals(1.0f, config.get(speed));
+        assertFalse(config.isDirty());
+    }
+
+    @Test
+    void trySetByStringPathRejectsWrongType() {
+        config.load();
+        assertFalse(config.trySet("core.speed_multiplier", "fast"));
+        assertEquals(1.0f, config.get(speed));
+    }
+
+    @Test
+    void trySetByStringPathWritesWhereNoDefinitionExists() {
+        assertTrue(config.trySet("misc.freeform", 42));
+        assertEquals(42, config.get("misc.freeform").asInt());
+    }
+
+    @Test
+    void trySetByKeyRejectsOutOfRangeValue() {
+        config.load();
+        assertFalse(config.trySet(speed, 20.0f));
+        assertEquals(1.0f, config.get(speed));
+    }
+
+    @Test
+    void trySetByKeyAcceptsValidValue() {
+        config.load();
+        assertTrue(config.trySet(speed, 5.0f));
+        assertEquals(5.0f, config.get(speed));
+    }
+
+    @Test
+    void trySetByKeyRejectsForeignKey() {
+        ConfigKey<Float> foreign = Config.create("other", new InMemoryConfigStorage())
+                .define("core.speed_multiplier")
+                .asFloat()
+                .defaultValue(1.0f)
+                .register();
+        assertThrows(ConfigException.class, () -> config.trySet(foreign, 5.0f));
+    }
+
+    @Test
     void invalidStoredValueIsRepairedToDefaultOnLoad() {
         storage.seed("core", documentWith("core.speed_multiplier", new JsonPrimitive(99.0f)));
         config.load();
