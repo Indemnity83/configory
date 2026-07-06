@@ -142,11 +142,7 @@ public final class Config {
             return key.definition().defaultValue();
         }
         T value = ConfigValues.fromJson(element, key.definition().type());
-        ValidationResult result = key.definition().validate(value, this);
-        if (!result.valid()) {
-            throw new ConfigValidationException(
-                    "Invalid config value at " + key.path().fullPath() + ": " + result.message());
-        }
+        validateOrThrow(key, value);
         return value;
     }
 
@@ -186,11 +182,7 @@ public final class Config {
      */
     public <T> ConfigMutation set(ConfigKey<T> key, T value) {
         assertOwns(key);
-        ValidationResult result = key.definition().validate(value, this);
-        if (!result.valid()) {
-            throw new ConfigValidationException(
-                    "Invalid config value at " + key.path().fullPath() + ": " + result.message());
-        }
+        validateOrThrow(key, value);
         return setRaw(key.path(), value);
     }
 
@@ -380,6 +372,14 @@ public final class Config {
     private void assertOwns(ConfigKey<?> key) {
         if (!id.equals(key.configId())) {
             throw new ConfigException("Config key " + key + " does not belong to config '" + id + "'.");
+        }
+    }
+
+    private <T> void validateOrThrow(ConfigKey<T> key, T value) {
+        ValidationResult result = key.definition().validate(value, this);
+        if (!result.valid()) {
+            throw new ConfigValidationException(
+                    "Invalid config value at " + key.path().fullPath() + ": " + result.message());
         }
     }
 }
