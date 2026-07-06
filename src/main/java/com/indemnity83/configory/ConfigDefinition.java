@@ -4,6 +4,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * The immutable specification of a single config value: its path, type, default, description, and
+ * validation constraints.
+ *
+ * <p>Definitions are normally produced by the fluent builder chain and registered to obtain a
+ * {@link ConfigKey}. They also drive load-time behavior: applying defaults, validating stored
+ * values, and describing keys to tooling.
+ *
+ * @param <T> the value type
+ */
 public final class ConfigDefinition<T> {
     private final ConfigPath path;
     private final ConfigType type;
@@ -12,6 +22,17 @@ public final class ConfigDefinition<T> {
     private final String description;
     private final List<ConfigConstraint<T>> constraints;
 
+    /**
+     * Creates a definition. Constraints are defensively copied.
+     *
+     * @param path the value's path
+     * @param type the value's {@link ConfigType}
+     * @param valueClass the Java class of the value
+     * @param defaultValue the value used when the key is unset or the stored value is invalid; must
+     *     not be null
+     * @param description a human-readable description for tooling; a null description becomes empty
+     * @param constraints the validation constraints applied in order
+     */
     public ConfigDefinition(
             ConfigPath path,
             ConfigType type,
@@ -27,30 +48,55 @@ public final class ConfigDefinition<T> {
         this.constraints = List.copyOf(new ArrayList<>(constraints));
     }
 
+    /**
+     * {@return the path this value is stored at}
+     */
     public ConfigPath path() {
         return path;
     }
 
+    /**
+     * {@return the declared config type of this value}
+     */
     public ConfigType type() {
         return type;
     }
 
+    /**
+     * {@return the Java class of this value}
+     */
     public Class<T> valueClass() {
         return valueClass;
     }
 
+    /**
+     * {@return the value used when the key is unset or a stored value is invalid}
+     */
     public T defaultValue() {
         return defaultValue;
     }
 
+    /**
+     * {@return the human-readable description, or an empty string if none was given}
+     */
     public String description() {
         return description;
     }
 
+    /**
+     * {@return the immutable list of validation constraints, applied in order}
+     */
     public List<ConfigConstraint<T>> constraints() {
         return constraints;
     }
 
+    /**
+     * Runs each constraint in order and returns the first failure, or success if all pass.
+     *
+     * @param value the candidate value to validate
+     * @param config the config for constraints that reference other values
+     * @return the first failing {@link ValidationResult}, or {@link ValidationResult#ok()} if valid
+     */
     public ValidationResult validate(T value, Config config) {
         for (ConfigConstraint<T> constraint : constraints) {
             ValidationResult result = constraint.validate(value, config);

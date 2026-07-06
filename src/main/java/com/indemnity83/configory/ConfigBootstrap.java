@@ -2,10 +2,15 @@ package com.indemnity83.configory;
 
 import java.lang.reflect.Method;
 
-public final class ConfigBootstrap {
+/**
+ * Initializes a host's nested {@code Configs} class and loads its config via reflection.
+ *
+ * <p>Internal to Configory; not part of the public API.
+ */
+final class ConfigBootstrap {
     private ConfigBootstrap() {}
 
-    public static void bootstrap(Class<?> hostClass, Config config) {
+    static void bootstrap(Class<?> hostClass, Config config) {
         Class<?> entriesClass = findConfigEntriesClass(hostClass);
         forceInitialize(entriesClass);
         invokeOptionalBootstrap(entriesClass, config);

@@ -3,10 +3,15 @@ package com.indemnity83.configory;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonPrimitive;
 
-public final class ConfigValues {
+/**
+ * Converts between the supported config value types and their Gson JSON representation.
+ *
+ * <p>Internal to Configory; not part of the public API.
+ */
+final class ConfigValues {
     private ConfigValues() {}
 
-    public static JsonElement toJson(Object value) {
+    static JsonElement toJson(Object value) {
         if (value instanceof Boolean b) return new JsonPrimitive(b);
         if (value instanceof String s) return new JsonPrimitive(s);
         if (value instanceof Integer i) return new JsonPrimitive(i);
@@ -18,7 +23,7 @@ public final class ConfigValues {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> T fromJson(JsonElement element, ConfigType type) {
+    static <T> T fromJson(JsonElement element, ConfigType type) {
         if (element == null || element.isJsonNull()) {
             throw new ConfigException("Config value is missing.");
         }
