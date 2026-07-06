@@ -91,6 +91,15 @@ code, so explanatory comments there are welcome and encouraged where they aid un
 history rule still holds even in tests — don't describe how the code changed unless that change
 is exactly what the test is asserting.
 
+## Public API documentation
+
+Documentation is not a comment, and the rules above do not apply to it. This is a library, so
+its public API is a product surface that should be documented. **Every public type carries a
+class-level Javadoc block** describing what it is and how it's used, and public methods and
+fields are documented where their contract isn't obvious from the signature. Write Javadoc for
+the consumer reading it from an IDE or generated docs — describe behavior, parameters, return
+values, and thrown exceptions, not implementation.
+
 ## Conventions
 
 - Match the style and idiom of surrounding code.
