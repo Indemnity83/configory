@@ -1,31 +1,49 @@
 # Defining Values
 
-A value is declared with a fluent chain: start with `config.define(path)`, choose a type, set a
-default, add optional constraints, and finish with `register()` to get a typed `ConfigKey<T>`.
+A value is declared with a fluent chain: pick a type, set a default, add optional constraints, and
+finish with `register()` to get a typed `ConfigKey<T>`. The everyday form is `defineX(path,
+default)` — it names the type and presets the default in one call:
 
 ```java
-config.define("core.speed_multiplier")   // start the chain at a path
-        .asFloat()                       // choose the type
-        .defaultValue(1.0f)              // required default
-        .range(0.1f, 10.0f)              // optional constraints
+config.defineFloat("core.speed_multiplier", 1.0f)   // type + default in one call
+        .range(0.1f, 10.0f)                         // optional constraints
         .describe("Global speed multiplier.")
-        .register();                     // -> ConfigKey<Float>
+        .register();                                // -> ConfigKey<Float>
+```
+
+There is a shorthand per type — `defineBoolean`, `defineString`, `defineInt`, `defineLong`,
+`defineFloat`, `defineDouble` — and each has a one-argument overload that leaves the default unset,
+for when you'd rather set it lower in the chain:
+
+```java
+config.defineInt("machines.quarry.max_area")   // no preset default
+        .defaultValue(64)
+        .range(1, 256)
+        .register();
+```
+
+Both forms are shorthand for the general chain, `define(path).asX()...`, which is still available
+if you prefer to spell the type out as its own step:
+
+```java
+config.define("core.speed_multiplier")   // start at a path
+        .asFloat()                       // choose the type
+        .defaultValue(1.0f)              // set the default
+        .register();
 ```
 
 > [!NOTE]
-> A default value is required — `register()` throws if you omit it. `defaultValue(...)` also has
-> the alias `defaultsTo(...)` if it reads better in your chain.
+> A default value is required — `register()` throws if you omit it. The two-argument
+> `defineX(path, default)` supplies it up front; otherwise use `defaultValue(...)` (or its alias
+> `defaultsTo(...)`) before `register()`.
 
-Configory supports the common primitive types. Each type has a matching `asX()` step and its own
-constraints.
+Configory supports the common primitive types, shown below with the `defineX(...)` shorthand.
 
 ## Float
 
 ```java
 public static final ConfigKey<Float> SPEED_MULTIPLIER =
-        config.define("core.speed_multiplier")
-                .asFloat()
-                .defaultValue(1.0f)
+        config.defineFloat("core.speed_multiplier", 1.0f)
                 .range(0.1f, 10.0f)
                 .describe("Global speed multiplier.")
                 .register();
@@ -35,9 +53,7 @@ public static final ConfigKey<Float> SPEED_MULTIPLIER =
 
 ```java
 public static final ConfigKey<Double> EFFICIENCY =
-        config.define("machines.efficiency")
-                .asDouble()
-                .defaultValue(0.85)
+        config.defineDouble("machines.efficiency", 0.85)
                 .range(0.0, 1.0)
                 .describe("Machine efficiency multiplier.")
                 .register();
@@ -47,9 +63,7 @@ public static final ConfigKey<Double> EFFICIENCY =
 
 ```java
 public static final ConfigKey<Integer> MAX_AREA =
-        config.define("machines.quarry.max_area")
-                .asInt()
-                .defaultValue(64)
+        config.defineInt("machines.quarry.max_area", 64)
                 .min(1)
                 .max(256)
                 .describe("Maximum quarry area.")
@@ -60,9 +74,7 @@ public static final ConfigKey<Integer> MAX_AREA =
 
 ```java
 public static final ConfigKey<Long> ENERGY_CAPACITY =
-        config.define("machines.battery.capacity")
-                .asLong()
-                .defaultValue(100_000L)
+        config.defineLong("machines.battery.capacity", 100_000L)
                 .min(0L)
                 .describe("Battery energy capacity.")
                 .register();
@@ -72,9 +84,7 @@ public static final ConfigKey<Long> ENERGY_CAPACITY =
 
 ```java
 public static final ConfigKey<Boolean> ENABLE_DEBUG =
-        config.define("core.debug")
-                .asBoolean()
-                .defaultValue(false)
+        config.defineBoolean("core.debug", false)
                 .describe("Enables debug logging.")
                 .register();
 ```
@@ -85,9 +95,7 @@ Strings add `allowedValues(...)` to constrain the value to an enumeration:
 
 ```java
 public static final ConfigKey<String> ENERGY_UNIT =
-        config.define("core.energy_unit")
-                .asString()
-                .defaultValue("FE")
+        config.defineString("core.energy_unit", "FE")
                 .allowedValues("FE", "RF", "MJ")
                 .describe("Displayed energy unit label.")
                 .register();
@@ -97,7 +105,8 @@ public static final ConfigKey<String> ENERGY_UNIT =
 
 | Step | Available on | Purpose |
 | --- | --- | --- |
-| `asBoolean/asString/asInt/asLong/asFloat/asDouble()` | `define(path)` | choose the value type |
+| `defineBoolean/defineString/defineInt/defineLong/defineFloat/defineDouble(path[, default])` | `config` | start a typed definition (shorthand for `define(path).asX()`) |
+| `asBoolean/asString/asInt/asLong/asFloat/asDouble()` | `define(path)` | choose the value type (long form) |
 | `defaultValue(v)` / `defaultsTo(v)` | all types | required fallback value |
 | `min(v)` / `max(v)` / `range(lo, hi)` | numeric types | fixed bounds |
 | `minValueOf(...)` / `maxValueOf(...)` | numeric types | bounds tied to another key |

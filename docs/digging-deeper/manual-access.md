@@ -7,9 +7,7 @@ tools, and non-standard mod layouts where the nested-`Configs` pattern doesn't f
 Config config = ConfigRegistry.config("examplemod");
 
 ConfigKey<Float> speedMultiplier =
-        config.define("core.speed_multiplier")
-                .asFloat()
-                .defaultValue(1.0f)
+        config.defineFloat("core.speed_multiplier", 1.0f)
                 .range(0.1f, 10.0f)
                 .register();
 

@@ -16,10 +16,7 @@ public final class ExampleMod implements ConfigHost {
         private static final Config config = configFor(MOD_ID);
 
         public static final ConfigKey<Float> SPEED_MULTIPLIER =
-                config.define("core.speed_multiplier")
-                        .asFloat()
-                        .defaultValue(1.0f)
-                        .register();
+                config.defineFloat("core.speed_multiplier", 1.0f).register();
     }
 }
 ```
@@ -64,10 +61,10 @@ public static final class Configs extends ConfigEntries {
     private static final Config config = configFor(MOD_ID);
 
     public static final ConfigKey<Double> MIN =
-            config.define("machines.min").asDouble().defaultValue(3.0).register();
+            config.defineDouble("machines.min", 3.0).register();
 
     public static final ConfigKey<Double> MAX =
-            config.define("machines.max").asDouble().defaultValue(10.0).register();
+            config.defineDouble("machines.max", 10.0).register();
 
     public static void bootstrap(Config config) {
         config.registerSanitizeHook(() -> config.repairMinMax(MIN, MAX));

@@ -9,18 +9,14 @@ example. Configory handles this with supplier-based bounds and sanitize hooks.
 
 ```java
 public static final ConfigKey<Double> STIRLING_MIN_OUTPUT =
-        config.define("engines.stirling.min_output")
-                .asDouble()
-                .defaultValue(3.0)
+        config.defineDouble("engines.stirling.min_output", 3.0)
                 .min(0.0)
                 .maxValueOf(() -> STIRLING_MAX_OUTPUT)
                 .describe("Stirling engine minimum RF/t output.")
                 .register();
 
 public static final ConfigKey<Double> STIRLING_MAX_OUTPUT =
-        config.define("engines.stirling.max_output")
-                .asDouble()
-                .defaultValue(10.0)
+        config.defineDouble("engines.stirling.max_output", 10.0)
                 .min(0.0)
                 .minValueOf(() -> STIRLING_MIN_OUTPUT)
                 .describe("Stirling engine maximum RF/t output.")

@@ -25,9 +25,7 @@ Define a value once, with its type, default, and constraints:
 
 ```java
 public static final ConfigKey<Float> SPEED_MULTIPLIER =
-        config.define("core.speed_multiplier")
-                .asFloat()
-                .defaultValue(1.0f)
+        config.defineFloat("core.speed_multiplier", 1.0f)
                 .range(0.1f, 10.0f)
                 .describe("Global speed multiplier.")
                 .register();

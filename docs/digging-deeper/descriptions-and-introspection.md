@@ -8,9 +8,7 @@ config surfaces without hard-coding anything.
 Every config key can carry a description:
 
 ```java
-config.define("engines.redstone.output")
-        .asLong()
-        .defaultValue(10L)
+config.defineLong("engines.redstone.output", 10L)
         .describe("RF generated per 16-tick interval.")
         .register();
 ```

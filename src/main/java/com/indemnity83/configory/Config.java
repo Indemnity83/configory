@@ -2,7 +2,13 @@ package com.indemnity83.configory;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.indemnity83.configory.builder.BooleanConfigBuilder;
 import com.indemnity83.configory.builder.ConfigDefinitionBuilder;
+import com.indemnity83.configory.builder.DoubleConfigBuilder;
+import com.indemnity83.configory.builder.FloatConfigBuilder;
+import com.indemnity83.configory.builder.IntConfigBuilder;
+import com.indemnity83.configory.builder.LongConfigBuilder;
+import com.indemnity83.configory.builder.StringConfigBuilder;
 import com.indemnity83.configory.storage.ConfigStorage;
 import com.indemnity83.configory.storage.JsonFileConfigStorage;
 import java.nio.file.Path;
@@ -82,6 +88,156 @@ public final class Config {
      */
     public ConfigDefinitionBuilder define(String path) {
         return new ConfigDefinitionBuilder(this, ConfigPath.parse(path));
+    }
+
+    /**
+     * Begins a fluent definition for a boolean value at the given path.
+     *
+     * <p>Shorthand for {@code define(path).asBoolean()}.
+     *
+     * @param path a dotted path or bare key; see {@link ConfigPath}
+     * @return a boolean builder for setting a default, optional constraints, and registering
+     */
+    public BooleanConfigBuilder defineBoolean(String path) {
+        return define(path).asBoolean();
+    }
+
+    /**
+     * Begins a fluent definition for a boolean value with its default already set.
+     *
+     * <p>Shorthand for {@code define(path).asBoolean().defaultValue(defaultValue)}.
+     *
+     * @param path a dotted path or bare key; see {@link ConfigPath}
+     * @param defaultValue the value used when the key is unset or a stored value is invalid
+     * @return a boolean builder for adding optional constraints and registering
+     */
+    public BooleanConfigBuilder defineBoolean(String path, boolean defaultValue) {
+        return defineBoolean(path).defaultValue(defaultValue);
+    }
+
+    /**
+     * Begins a fluent definition for a string value at the given path.
+     *
+     * <p>Shorthand for {@code define(path).asString()}.
+     *
+     * @param path a dotted path or bare key; see {@link ConfigPath}
+     * @return a string builder for setting a default, optional constraints, and registering
+     */
+    public StringConfigBuilder defineString(String path) {
+        return define(path).asString();
+    }
+
+    /**
+     * Begins a fluent definition for a string value with its default already set.
+     *
+     * <p>Shorthand for {@code define(path).asString().defaultValue(defaultValue)}.
+     *
+     * @param path a dotted path or bare key; see {@link ConfigPath}
+     * @param defaultValue the value used when the key is unset or a stored value is invalid
+     * @return a string builder for adding optional constraints and registering
+     */
+    public StringConfigBuilder defineString(String path, String defaultValue) {
+        return defineString(path).defaultValue(defaultValue);
+    }
+
+    /**
+     * Begins a fluent definition for an int value at the given path.
+     *
+     * <p>Shorthand for {@code define(path).asInt()}.
+     *
+     * @param path a dotted path or bare key; see {@link ConfigPath}
+     * @return an int builder for setting a default, optional constraints, and registering
+     */
+    public IntConfigBuilder defineInt(String path) {
+        return define(path).asInt();
+    }
+
+    /**
+     * Begins a fluent definition for an int value with its default already set.
+     *
+     * <p>Shorthand for {@code define(path).asInt().defaultValue(defaultValue)}.
+     *
+     * @param path a dotted path or bare key; see {@link ConfigPath}
+     * @param defaultValue the value used when the key is unset or a stored value is invalid
+     * @return an int builder for adding optional constraints and registering
+     */
+    public IntConfigBuilder defineInt(String path, int defaultValue) {
+        return defineInt(path).defaultValue(defaultValue);
+    }
+
+    /**
+     * Begins a fluent definition for a long value at the given path.
+     *
+     * <p>Shorthand for {@code define(path).asLong()}.
+     *
+     * @param path a dotted path or bare key; see {@link ConfigPath}
+     * @return a long builder for setting a default, optional constraints, and registering
+     */
+    public LongConfigBuilder defineLong(String path) {
+        return define(path).asLong();
+    }
+
+    /**
+     * Begins a fluent definition for a long value with its default already set.
+     *
+     * <p>Shorthand for {@code define(path).asLong().defaultValue(defaultValue)}.
+     *
+     * @param path a dotted path or bare key; see {@link ConfigPath}
+     * @param defaultValue the value used when the key is unset or a stored value is invalid
+     * @return a long builder for adding optional constraints and registering
+     */
+    public LongConfigBuilder defineLong(String path, long defaultValue) {
+        return defineLong(path).defaultValue(defaultValue);
+    }
+
+    /**
+     * Begins a fluent definition for a float value at the given path.
+     *
+     * <p>Shorthand for {@code define(path).asFloat()}.
+     *
+     * @param path a dotted path or bare key; see {@link ConfigPath}
+     * @return a float builder for setting a default, optional constraints, and registering
+     */
+    public FloatConfigBuilder defineFloat(String path) {
+        return define(path).asFloat();
+    }
+
+    /**
+     * Begins a fluent definition for a float value with its default already set.
+     *
+     * <p>Shorthand for {@code define(path).asFloat().defaultValue(defaultValue)}.
+     *
+     * @param path a dotted path or bare key; see {@link ConfigPath}
+     * @param defaultValue the value used when the key is unset or a stored value is invalid
+     * @return a float builder for adding optional constraints and registering
+     */
+    public FloatConfigBuilder defineFloat(String path, float defaultValue) {
+        return defineFloat(path).defaultValue(defaultValue);
+    }
+
+    /**
+     * Begins a fluent definition for a double value at the given path.
+     *
+     * <p>Shorthand for {@code define(path).asDouble()}.
+     *
+     * @param path a dotted path or bare key; see {@link ConfigPath}
+     * @return a double builder for setting a default, optional constraints, and registering
+     */
+    public DoubleConfigBuilder defineDouble(String path) {
+        return define(path).asDouble();
+    }
+
+    /**
+     * Begins a fluent definition for a double value with its default already set.
+     *
+     * <p>Shorthand for {@code define(path).asDouble().defaultValue(defaultValue)}.
+     *
+     * @param path a dotted path or bare key; see {@link ConfigPath}
+     * @param defaultValue the value used when the key is unset or a stored value is invalid
+     * @return a double builder for adding optional constraints and registering
+     */
+    public DoubleConfigBuilder defineDouble(String path, double defaultValue) {
+        return defineDouble(path).defaultValue(defaultValue);
     }
 
     /**
