@@ -3,10 +3,15 @@ package com.indemnity83.configory;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-public final class JsonPaths {
+/**
+ * Reads and writes nested values in a JSON document addressed by a {@link ConfigPath}.
+ *
+ * <p>Internal to Configory; not part of the public API.
+ */
+final class JsonPaths {
     private JsonPaths() {}
 
-    public static JsonElement get(JsonObject root, ConfigPath path) {
+    static JsonElement get(JsonObject root, ConfigPath path) {
         JsonElement current = root;
         for (String segment : path.segments()) {
             if (!(current instanceof JsonObject object)) {
@@ -20,7 +25,7 @@ public final class JsonPaths {
         return current;
     }
 
-    public static void set(JsonObject root, ConfigPath path, JsonElement value) {
+    static void set(JsonObject root, ConfigPath path, JsonElement value) {
         JsonObject current = root;
         for (int i = 0; i < path.segments().size() - 1; i++) {
             String segment = path.segments().get(i);

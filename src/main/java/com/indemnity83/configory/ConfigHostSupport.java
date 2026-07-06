@@ -4,10 +4,15 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Optional;
 
-public final class ConfigHostSupport {
+/**
+ * Resolves a mod's config id from a {@code MOD_ID}/{@code MODID} field via reflection.
+ *
+ * <p>Internal to Configory; not part of the public API.
+ */
+final class ConfigHostSupport {
     private ConfigHostSupport() {}
 
-    public static String resolveModId(Class<?> hostClass) {
+    static String resolveModId(Class<?> hostClass) {
         return findStaticStringField(hostClass, "MOD_ID")
                 .or(() -> findStaticStringField(hostClass, "MODID"))
                 .orElseThrow(() -> new ConfigException("Unable to resolve config id for " + hostClass.getName()
