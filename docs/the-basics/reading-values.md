@@ -52,11 +52,25 @@ float strict = getConfig("core.speed_multiplier").asFloat();       // throws if 
 float safe = getConfig("core.speed_multiplier").asFloat(1.0f);     // 1.0f if absent/invalid
 ```
 
+## Checking for a value
+
+Call `isPresent()` to test whether a value is stored at a path before a strict read — useful for
+dynamic tools that branch on presence rather than supply a default:
+
+```java
+ConfigValue value = getConfig("core.speed_multiplier");
+if (value.isPresent()) {
+    applySpeed(value.asFloat());
+}
+```
+
+`isPresent()` reports whether a non-null value exists at the path; it does **not** check the
+value's type, so a present value can still fail a strict `asX()` read if it is the wrong type.
+`isEmpty()` is its inverse.
+
 > [!TIP]
-> When reading a path that may not exist, prefer the fallback overload. A `ConfigValue` currently
-> has no presence check (such as `isPresent()`) — testing existence before a strict read means
-> catching the exception or simply passing a fallback. Adding a presence check is tracked in the
-> project's issue tracker.
+> When reading a path that may not exist, either test `isPresent()` first or use the fallback
+> overload (`asFloat(1.0f)`) — both avoid a thrown `ConfigException`.
 
 ## Next steps
 

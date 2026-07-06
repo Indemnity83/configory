@@ -51,4 +51,23 @@ class ConfigValueTest {
     void strictReadThrowsForWrongType() {
         assertThrows(ConfigException.class, () -> config.get("core.name").asDouble());
     }
+
+    @Test
+    void isPresentReportsStoredValues() {
+        ConfigValue value = config.get("core.speed");
+        assertTrue(value.isPresent());
+        assertFalse(value.isEmpty());
+    }
+
+    @Test
+    void isPresentReportsMissingValues() {
+        ConfigValue value = config.get("misc.unknown");
+        assertFalse(value.isPresent());
+        assertTrue(value.isEmpty());
+    }
+
+    @Test
+    void isPresentIgnoresType() {
+        assertTrue(config.get("core.name").isPresent());
+    }
 }
