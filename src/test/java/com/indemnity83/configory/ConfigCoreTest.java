@@ -69,6 +69,14 @@ class ConfigCoreTest {
     }
 
     @Test
+    void setByKeyRejectsValueBelowMinimum() {
+        config.load();
+        ConfigValidationException ex = assertThrows(ConfigValidationException.class, () -> config.set(speed, 0.0f));
+        assertTrue(ex.getMessage().contains("core.speed_multiplier"));
+        assertTrue(ex.getMessage().contains("at least"));
+    }
+
+    @Test
     void setByKeyAcceptsValidValueAndTracksDirty() {
         config.load();
         config.save();
