@@ -49,6 +49,12 @@ class ConfigCoreTest {
     }
 
     @Test
+    void saveIsNoOpForFileWithNoInMemoryDocument() {
+        assertDoesNotThrow(() -> config.save("never_loaded"));
+        assertFalse(storage.has("never_loaded"));
+    }
+
+    @Test
     void getReturnsStoredValueOverDefault() {
         storage.seed("core", documentWith("core.speed_multiplier", new JsonPrimitive(3.0f)));
         config.load();
