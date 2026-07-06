@@ -1,0 +1,13 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="MIT"
+issueTrackerURL="https://github.com/Indemnity83/configory/issues"
+
+[[mods]]
+modId="configory"
+version="${version}"
+displayName="Configory"
+description='''
+Convention-based configuration for Minecraft mods.
+'''
+authors="Kyle Klaus (@indemnity83)"

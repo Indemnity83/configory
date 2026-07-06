@@ -73,13 +73,12 @@ jobs:
           version: ${{ steps.version.outputs.version }}
           version-type: release
 
-          # Configory is loader-agnostic; the loaders and game versions are metadata Modrinth
+          # The jar ships fabric.mod.json and neoforge.mods.toml so Modrinth accepts it as a
+          # library mod; declare only those two loaders. game-versions is metadata Modrinth
           # requires on every upload, not a real runtime constraint.
           loaders: |
             fabric
             neoforge
-            forge
-            quilt
           game-versions: ">=1.20"
 
           files: |
