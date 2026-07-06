@@ -23,7 +23,8 @@ reloadConfig();           // safe reload (throws on unsaved changes)
 Obtained from `ConfigRegistry.config(id)` or `Config.create(id)`:
 
 ```java
-config.define(path);            // start a definition -> builder
+config.defineFloat(path, def);  // typed definition shorthand (also Boolean/String/Int/Long/Double)
+config.define(path);            // start a definition -> builder (long form: .asX())
 config.get(path);               // -> ConfigValue
 config.get(key);                // -> T
 config.set(path, value);        // -> ConfigMutation (no validation)
@@ -72,13 +73,21 @@ See [Writing &amp; Saving](the-basics/writing-and-saving.md).
 ## Definitions
 
 ```java
-config.define("core.speed_multiplier")
-        .asFloat()                       // asBoolean/asString/asInt/asLong/asFloat/asDouble
-        .defaultValue(1.0f)              // or defaultsTo(1.0f)
+config.defineFloat("core.speed_multiplier", 1.0f)  // shorthand: type + default
         .range(0.1f, 10.0f)              // min / max / range / minValueOf / maxValueOf
         .describe("Global speed multiplier.")
         .validator((v, c) -> /* ... */)  // optional custom rule
         .register();                     // -> ConfigKey<Float>
+```
+
+The long form spells the type and default as separate steps:
+
+```java
+config.define("core.speed_multiplier")
+        .asFloat()                       // asBoolean/asString/asInt/asLong/asFloat/asDouble
+        .defaultValue(1.0f)              // or defaultsTo(1.0f)
+        .range(0.1f, 10.0f)
+        .register();
 ```
 
 See [Defining Values](the-basics/defining-values.md) and [Validation](digging-deeper/validation.md).

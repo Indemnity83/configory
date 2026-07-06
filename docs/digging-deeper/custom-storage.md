@@ -62,7 +62,7 @@ Then build a config around it:
 
 ```java
 Config config = Config.create("examplemod", new InMemoryConfigStorage());
-config.define("core.speed_multiplier").asFloat().defaultValue(1.0f).register();
+config.defineFloat("core.speed_multiplier", 1.0f).register();
 config.load();
 ```
 

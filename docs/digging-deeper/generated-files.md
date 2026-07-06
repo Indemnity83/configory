@@ -7,9 +7,7 @@ Seeing the exact output makes the [path rules](the-basics/configuration-paths.md
 
 ```java
 public static final ConfigKey<Float> SPEED_MULTIPLIER =
-        config.define("core.speed_multiplier")
-                .asFloat()
-                .defaultValue(1.0f)
+        config.defineFloat("core.speed_multiplier", 1.0f)
                 .range(0.1f, 10.0f)
                 .describe("Global speed multiplier.")
                 .register();
@@ -31,9 +29,7 @@ writes:
 
 ```java
 public static final ConfigKey<Double> STIRLING_MIN_OUTPUT =
-        config.define("engines.stirling.min_output")
-                .asDouble()
-                .defaultValue(3.0)
+        config.defineDouble("engines.stirling.min_output", 3.0)
                 .min(0.0)
                 .describe("Stirling engine minimum RF/t output.")
                 .register();
@@ -59,9 +55,7 @@ For a simple mod that only uses bare keys:
 
 ```java
 public static final ConfigKey<Float> SPEED_MULTIPLIER =
-        config.define("speed_multiplier")
-                .asFloat()
-                .defaultValue(1.0f)
+        config.defineFloat("speed_multiplier", 1.0f)
                 .range(0.1f, 10.0f)
                 .register();
 ```

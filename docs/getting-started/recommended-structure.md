@@ -18,34 +18,26 @@ public final class LogisticsMod implements ConfigHost {
         private Configs() {}
 
         public static final ConfigKey<Float> SPEED_MULTIPLIER =
-                config.define("core.speed_multiplier")
-                        .asFloat()
-                        .defaultValue(1.0f)
+                config.defineFloat("core.speed_multiplier", 1.0f)
                         .range(0.1f, 10.0f)
                         .describe("Global speed multiplier.")
                         .register();
 
         public static final ConfigKey<Long> REDSTONE_OUTPUT =
-                config.define("engines.redstone.output")
-                        .asLong()
-                        .defaultValue(10L)
+                config.defineLong("engines.redstone.output", 10L)
                         .min(0L)
                         .describe("RF generated per 16-tick interval.")
                         .register();
 
         public static final ConfigKey<Double> STIRLING_MIN_OUTPUT =
-                config.define("engines.stirling.min_output")
-                        .asDouble()
-                        .defaultValue(3.0)
+                config.defineDouble("engines.stirling.min_output", 3.0)
                         .min(0.0)
                         .maxValueOf(() -> STIRLING_MAX_OUTPUT)
                         .describe("Stirling engine minimum RF/t output.")
                         .register();
 
         public static final ConfigKey<Double> STIRLING_MAX_OUTPUT =
-                config.define("engines.stirling.max_output")
-                        .asDouble()
-                        .defaultValue(10.0)
+                config.defineDouble("engines.stirling.max_output", 10.0)
                         .min(0.0)
                         .minValueOf(() -> STIRLING_MIN_OUTPUT)
                         .describe("Stirling engine maximum RF/t output.")

@@ -5,9 +5,7 @@ no separate validation layer to wire up.
 
 ```java
 public static final ConfigKey<Integer> MAX_AREA =
-        config.define("machines.quarry.max_area")
-                .asInt()
-                .defaultValue(64)
+        config.defineInt("machines.quarry.max_area", 64)
                 .range(1, 256)
                 .describe("Maximum quarry area.")
                 .register();
@@ -30,9 +28,7 @@ a function of `(value, config)` returning a `ValidationResult`:
 
 ```java
 public static final ConfigKey<String> WORLD_NAME =
-        config.define("core.world_name")
-                .asString()
-                .defaultValue("world")
+        config.defineString("core.world_name", "world")
                 .validator((value, config) -> value.matches("[a-z0-9_]+")
                         ? ValidationResult.ok()
                         : ValidationResult.error("World name must be lowercase alphanumeric."))
