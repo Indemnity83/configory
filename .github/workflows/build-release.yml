@@ -63,7 +63,7 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish }}
         uses: Kir-Antipov/mc-publish@v3.3
         with:
-          modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
 
           github-token: ${{ secrets.GITHUB_TOKEN }}
