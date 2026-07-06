@@ -19,12 +19,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Dependabot titles its PRs "build: Bump ..." / "ci: Bump ..." with a capitalized
-      # "Bump" that can't be configured away, which trips the lowercase-subject rule below.
-      # Skip the check for Dependabot; the job still runs and reports "lint (pr)" green so the
-      # required status check stays satisfied.
-      - if: ${{ github.actor != 'dependabot[bot]' }}
-        uses: amannn/action-semantic-pull-request@v5
+      - uses: amannn/action-semantic-pull-request@v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -43,17 +38,16 @@ jobs:
             chore
             revert
 
-          # Focused single-module library: no scopes.
           requireScope: false
 
-          subjectPattern: ^(?![A-Z]).+$
+          subjectPattern: ^[A-Z].+$
           subjectPatternError: |
             The subject "{subject}" found in the pull request title "{title}"
-            should start with a lowercase letter.
+            should start with an uppercase letter.
 
             Good:
-              fix: prevent a stuck config value
-              feat: add long range constraints
+              fix: Prevent a stuck config value
+              feat: Add long range constraints
 
             Bad:
-              Fix: Prevent a stuck config value
+              fix: prevent a stuck config value
