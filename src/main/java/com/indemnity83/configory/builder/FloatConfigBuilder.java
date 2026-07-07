@@ -9,7 +9,7 @@ import com.indemnity83.configory.ConfigType;
  *
  * <p>Obtained via {@code define(path).asFloat()}.
  */
-public final class FloatConfigBuilder extends NumericConfigBuilder<Float, FloatConfigBuilder> {
+public final class FloatConfigBuilder extends FloatingPointConfigBuilder<Float, FloatConfigBuilder> {
     /**
      * Creates a float builder. Normally obtained via {@code define(path).asFloat()}.
      *

@@ -9,7 +9,7 @@ import com.indemnity83.configory.ConfigType;
  *
  * <p>Obtained via {@code define(path).asDouble()}.
  */
-public final class DoubleConfigBuilder extends NumericConfigBuilder<Double, DoubleConfigBuilder> {
+public final class DoubleConfigBuilder extends FloatingPointConfigBuilder<Double, DoubleConfigBuilder> {
     /**
      * Creates a double builder. Normally obtained via {@code define(path).asDouble()}.
      *
