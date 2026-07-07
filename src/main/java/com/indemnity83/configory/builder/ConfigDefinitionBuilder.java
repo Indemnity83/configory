@@ -66,4 +66,14 @@ public final class ConfigDefinitionBuilder {
     public DoubleConfigBuilder asDouble() {
         return new DoubleConfigBuilder(config, path);
     }
+
+    /**
+     * {@return a builder that types this value as the given enum, stored by constant name}
+     *
+     * @param enumClass the enum type
+     * @param <E> the enum type
+     */
+    public <E extends Enum<E>> EnumConfigBuilder<E> asEnum(Class<E> enumClass) {
+        return new EnumConfigBuilder<>(config, path, enumClass);
+    }
 }
