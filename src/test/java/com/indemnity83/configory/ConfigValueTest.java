@@ -101,4 +101,22 @@ class ConfigValueTest {
         assertEquals(2.5, config.get("core.speed").asDouble(9.9));
         assertEquals("engine", config.get("core.name").asString("other"));
     }
+
+    @Test
+    void asDisplayStringRendersAnyTypeWithoutSwitching() {
+        Config typed = Config.create("disp", new InMemoryConfigStorage());
+        typed.define("flag").asBoolean().defaultValue(true).register();
+        typed.define("count").asInt().defaultValue(42).register();
+        typed.define("name").asString().defaultValue("x").register();
+        typed.load();
+
+        assertEquals("true", typed.get("flag").asDisplayString());
+        assertEquals("42", typed.get("count").asDisplayString());
+        assertEquals("x", typed.get("name").asDisplayString());
+    }
+
+    @Test
+    void asDisplayStringIsEmptyWhenAbsent() {
+        assertEquals("", config.get("misc.unknown").asDisplayString());
+    }
 }

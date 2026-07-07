@@ -18,6 +18,9 @@ public static final ConfigKey<Integer> MAX_AREA =
 | `min(v)` | numeric | value must be `>= v` |
 | `max(v)` | numeric | value must be `<= v` |
 | `range(lo, hi)` | numeric | shorthand for `min(lo).max(hi)` |
+| `greaterThan(v)` | numeric | value must be `> v` (exclusive) |
+| `lessThan(v)` | numeric | value must be `< v` (exclusive) |
+| `finite()` | float / double | rejects `NaN` and infinities |
 | `allowedValues(...)` | string | value must be one of the listed strings |
 | `minValueOf(...)` / `maxValueOf(...)` | numeric | bound tied to another key — see [Cross-Value Validation](digging-deeper/cross-value-validation.md) |
 

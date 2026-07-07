@@ -19,5 +19,7 @@ public enum ConfigType {
     /** A single-precision floating-point value ({@code float}). */
     FLOAT,
     /** A double-precision floating-point value ({@code double}). */
-    DOUBLE
+    DOUBLE,
+    /** An {@link Enum} constant, stored by its {@code name()}. */
+    ENUM
 }
