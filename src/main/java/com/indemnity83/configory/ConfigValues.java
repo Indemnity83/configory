@@ -18,12 +18,17 @@ final class ConfigValues {
         if (value instanceof Long l) return new JsonPrimitive(l);
         if (value instanceof Float f) return new JsonPrimitive(f);
         if (value instanceof Double d) return new JsonPrimitive(d);
+        if (value instanceof Enum<?> e) return new JsonPrimitive(e.name());
         throw new ConfigException(
                 "Unsupported config value type: " + value.getClass().getName());
     }
 
-    @SuppressWarnings("unchecked")
     static <T> T fromJson(JsonElement element, ConfigType type) {
+        return fromJson(element, type, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    static <T> T fromJson(JsonElement element, ConfigType type, Class<T> targetClass) {
         JsonPrimitive primitive = requirePrimitive(element);
         try {
             return switch (type) {
@@ -56,9 +61,25 @@ final class ConfigValues {
                     requireNumber(primitive, "double");
                     yield (T) Double.valueOf(primitive.getAsDouble());
                 }
+                case ENUM -> {
+                    if (!primitive.isString()) throw new ConfigException("Expected an enum name (string).");
+                    yield parseEnum(targetClass, primitive.getAsString());
+                }
             };
         } catch (NumberFormatException e) {
             throw new ConfigException("Invalid numeric config value.", e);
+        }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static <T> T parseEnum(Class<T> targetClass, String name) {
+        if (targetClass == null || !targetClass.isEnum()) {
+            throw new ConfigException("Enum target type is unknown.");
+        }
+        try {
+            return (T) Enum.valueOf((Class<? extends Enum>) targetClass, name);
+        } catch (IllegalArgumentException e) {
+            throw new ConfigException("Unknown enum constant '" + name + "' for " + targetClass.getSimpleName() + ".");
         }
     }
 
