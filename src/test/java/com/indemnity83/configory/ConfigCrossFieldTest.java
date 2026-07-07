@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class ConfigCrossFieldTest {
@@ -128,5 +129,32 @@ class ConfigCrossFieldTest {
         assertDoesNotThrow(() -> config.set(max, 8.0));
         ConfigValidationException ex = assertThrows(ConfigValidationException.class, () -> config.set(max, 2.0));
         assertTrue(ex.getMessage().contains("engines.min"));
+    }
+
+    @Test
+    void mutualCrossFieldValidatorsDoNotRecurse() {
+        InMemoryConfigStorage storage = new InMemoryConfigStorage();
+        Config config = Config.create("engines", storage);
+        AtomicReference<ConfigKey<Double>> maxRef = new AtomicReference<>();
+        ConfigKey<Double> min = config.define("engines.min")
+                .asDouble()
+                .defaultValue(3.0)
+                .min(0.0)
+                .maxValueOf(maxRef::get)
+                .register();
+        ConfigKey<Double> max = config.define("engines.max")
+                .asDouble()
+                .defaultValue(10.0)
+                .min(0.0)
+                .minValueOf(() -> min)
+                .register();
+        maxRef.set(max);
+
+        assertDoesNotThrow(config::load, "mutual cross-field validators must not recurse");
+        assertEquals(3.0, config.get(min));
+        assertEquals(10.0, config.get(max));
+
+        assertThrows(ConfigValidationException.class, () -> config.set(min, 20.0));
+        assertThrows(ConfigValidationException.class, () -> config.set(max, 1.0));
     }
 }

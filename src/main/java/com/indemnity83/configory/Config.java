@@ -39,6 +39,7 @@ public final class Config {
     private final Set<String> dirtyFiles = new HashSet<>();
     private final Map<ConfigPath, ConfigDefinition<?>> definitions = new LinkedHashMap<>();
     private final List<Runnable> sanitizeHooks = new ArrayList<>();
+    private final Set<ConfigPath> validating = new HashSet<>();
 
     private Config(String id, ConfigStorage storage) {
         this.id = Objects.requireNonNull(id, "id");
@@ -298,7 +299,16 @@ public final class Config {
             return key.definition().defaultValue();
         }
         T value = ConfigValues.fromJson(element, key.definition().type());
-        validateOrThrow(key, value);
+        // Skip validation while this key is already being validated higher on the stack, so mutually
+        // referential cross-field validators (e.g. a minValueOf/maxValueOf pair) read each other's
+        // value instead of recursing until the stack overflows.
+        if (validating.add(key.path())) {
+            try {
+                validateOrThrow(key, value);
+            } finally {
+                validating.remove(key.path());
+            }
+        }
         return value;
     }
 
