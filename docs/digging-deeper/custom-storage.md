@@ -36,6 +36,29 @@ Config config = Config.create("examplemod", storage);
 Everything else — definitions, validation, dirty tracking, save/reload — works unchanged; only
 where the bytes land is different.
 
+## With the registry and bootstrap conventions
+
+`Config.create(id, storage)` builds a config directly, but the
+[bootstrap convention](digging-deeper/bootstrap-convention.md) and `ConfigRegistry` normally create
+a **file-backed** config the first time an id is looked up. To inject storage through that path —
+for tests, or when a loader supplies the config directory — use the storage overloads:
+
+```java
+// registry
+Config config = ConfigRegistry.getOrCreate("examplemod", storage);
+
+// ConfigHost mix-in
+bootstrapConfig("examplemod", storage);
+Config config = config("examplemod", storage);
+
+// inside a Configs holder (ConfigEntries)
+private static final Config config = configFor("examplemod", storage);
+```
+
+The storage is applied only when the config is **first** created for that id; a config already
+registered for the id is returned unchanged. Register the storage before anything else touches the
+id — for example in a test's setup, before the `Configs` holder class initializes.
+
 ## In-memory storage for tests
 
 The most common custom backend is an in-memory store, so tests never touch the real filesystem.
