@@ -13,21 +13,21 @@ import com.google.gson.JsonObject;
  */
 public interface ConfigStorage {
     /**
-     * Loads a file's document.
+     * Loads the document for a config id.
      *
-     * @param file the config id (may be dotted)
-     * @return the stored document, or a new empty {@link JsonObject} if the file does not exist
-     * @throws com.indemnity83.configory.ConfigException if the file exists but cannot be read or
-     *     parsed
+     * @param id the config id (may be dotted)
+     * @return the stored document, or a new empty {@link JsonObject} if none exists
+     * @throws com.indemnity83.configory.ConfigException if a stored document exists but cannot be read
+     *     or parsed
      */
-    JsonObject load(String file);
+    JsonObject load(String id);
 
     /**
-     * Persists a file's document, replacing any prior contents.
+     * Persists the document for a config id, replacing any prior contents.
      *
-     * @param file the config id (may be dotted)
+     * @param id the config id (may be dotted)
      * @param root the document to write
      * @throws com.indemnity83.configory.ConfigException if the document cannot be written
      */
-    void save(String file, JsonObject root);
+    void save(String id, JsonObject root);
 }

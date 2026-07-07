@@ -32,6 +32,11 @@ import java.util.*;
  *
  * <p>Instances are usually obtained from {@link ConfigRegistry} rather than constructed directly, so
  * that each id maps to exactly one shared instance.
+ *
+ * <p><strong>Threading:</strong> a {@code Config} is not thread-safe. The registry hands out one
+ * shared instance per id, but a given instance expects single-threaded use (the common case: load on
+ * the mod's init thread, then read/write from game logic on the server thread). Guard it externally
+ * if you must touch the same config from multiple threads.
  */
 public final class Config {
     private final String id;
@@ -614,11 +619,7 @@ public final class Config {
             throw new ConfigException("Config id cannot be blank.");
         }
         for (String segment : id.split("\\.", -1)) {
-            if (segment.isBlank()
-                    || segment.equals(".")
-                    || segment.equals("..")
-                    || segment.indexOf('/') >= 0
-                    || segment.indexOf('\\') >= 0) {
+            if (ConfigPath.isUnsafeSegment(segment)) {
                 throw new ConfigException("Invalid config id (unsafe or empty segment): " + id);
             }
         }

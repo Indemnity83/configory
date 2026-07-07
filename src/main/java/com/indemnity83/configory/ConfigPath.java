@@ -64,6 +64,25 @@ public record ConfigPath(List<String> segments) {
     }
 
     /**
+     * {@return whether {@code segment} is unsafe as a config-id part or the file/directory name
+     * derived from it}
+     *
+     * <p>A segment is unsafe if it is blank, a path-traversal token ({@code "."} or {@code ".."}), or
+     * contains a path separator. This is the single rule guarding both {@linkplain Config#id() config
+     * ids} and the on-disk paths derived from them.
+     *
+     * @param segment the segment to check
+     */
+    public static boolean isUnsafeSegment(String segment) {
+        return segment == null
+                || segment.isBlank()
+                || segment.equals(".")
+                || segment.equals("..")
+                || segment.indexOf('/') >= 0
+                || segment.indexOf('\\') >= 0;
+    }
+
+    /**
      * {@return the {@linkplain #fullPath() dotted path}}
      */
     @Override
