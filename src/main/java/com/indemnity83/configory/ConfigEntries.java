@@ -1,5 +1,7 @@
 package com.indemnity83.configory;
 
+import com.indemnity83.configory.storage.ConfigStorage;
+
 /**
  * Base class for a mod's nested {@code Configs} holder of {@link ConfigKey} constants.
  *
@@ -16,6 +18,17 @@ public abstract class ConfigEntries {
      */
     protected static Config configFor(String configId) {
         return ConfigRegistry.getOrCreate(configId);
+    }
+
+    /**
+     * {@return the shared {@link Config} for the given id, creating one backed by {@code storage}
+     * if necessary}
+     *
+     * @param configId the config/mod id
+     * @param storage the storage to back a newly created config
+     */
+    protected static Config configFor(String configId, ConfigStorage storage) {
+        return ConfigRegistry.getOrCreate(configId, storage);
     }
 
     /**

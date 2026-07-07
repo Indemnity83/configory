@@ -1,5 +1,7 @@
 package com.indemnity83.configory;
 
+import com.indemnity83.configory.storage.ConfigStorage;
+
 /**
  * Convenience mix-in implemented by a mod's entry point to work with its config directly.
  *
@@ -26,6 +28,22 @@ public interface ConfigHost {
     }
 
     /**
+     * Initializes this host's config for the given id, backing it with {@code storage} instead of
+     * the default file store. Otherwise identical to {@link #bootstrapConfig(String)}.
+     *
+     * <p>The storage applies only if the config is created here; an already-registered config for
+     * the id is reused. Useful for tests and loaders that supply their own config directory.
+     *
+     * @param configId the config/mod id to bootstrap
+     * @param storage the storage to back a newly created config
+     * @throws ConfigException if no nested {@code Configs} class is found or bootstrap fails
+     */
+    default void bootstrapConfig(String configId, ConfigStorage storage) {
+        Config config = ConfigRegistry.getOrCreate(configId, storage);
+        ConfigBootstrap.bootstrap(getClass(), config);
+    }
+
+    /**
      * Bootstraps this host's config using the id resolved from its {@code MOD_ID}/{@code MODID}
      * field.
      *
@@ -43,6 +61,17 @@ public interface ConfigHost {
      */
     default Config config(String configId) {
         return ConfigRegistry.getOrCreate(configId);
+    }
+
+    /**
+     * {@return the shared {@link Config} for the given id, creating one backed by {@code storage}
+     * if necessary}
+     *
+     * @param configId the config/mod id
+     * @param storage the storage to back a newly created config
+     */
+    default Config config(String configId, ConfigStorage storage) {
+        return ConfigRegistry.getOrCreate(configId, storage);
     }
 
     /**
