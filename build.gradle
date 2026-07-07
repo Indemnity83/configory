@@ -1,11 +1,20 @@
 plugins {
     id 'java-library'
+    id 'maven-publish'
     id 'com.diffplug.spotless' version '8.8.0'
     id 'jacoco'
 }
 
 group = 'com.indemnity83'
 version = System.getenv("MOD_VERSION") ?: "dev"
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+        }
+    }
+}
 
 repositories {
     mavenCentral()

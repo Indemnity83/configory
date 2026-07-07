@@ -84,6 +84,31 @@ cd configory
 The wrapper is pinned to JDK 21 for its own build, so `./gradlew` works regardless of your
 default `java`.
 
+## Local testing in another mod
+
+To try an unreleased build against your own mod, publish it to your local Maven cache:
+
+```bash
+MOD_VERSION=0.1.1 ./gradlew publishToMavenLocal
+```
+
+That installs `com.indemnity83:configory:0.1.1` (with sources) into `~/.m2`. Depend on it from the
+consuming project via `mavenLocal()`:
+
+```groovy
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.indemnity83:configory:0.1.1'
+}
+```
+
+This is for local integration testing only — released builds are consumed from the Modrinth Maven
+shown above.
+
 ## Next steps
 
 Head to the [Quick Start](getting-started/quick-start.md) to define and use your first value.
