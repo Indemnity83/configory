@@ -50,6 +50,23 @@ The no-arg `bootstrapConfig()` looks for a `public static final String` field na
 then `MODID`, on the host class. It throws a `ConfigException` if neither exists (or the value is
 blank) — in that case pass the id explicitly.
 
+## Advanced: using an id other than your mod id
+
+The id is just a string: it names the config folder (`config/<id>/`) and is the key the registry
+shares instances under. Matching your mod id is the convention — and what the no-arg forms
+auto-resolve — but nothing requires it. For full control, pass any id to the explicit forms:
+
+```java
+bootstrapConfig("examplemod_client");                        // ConfigHost
+Config config = configFor("examplemod_client");              // inside a Configs holder
+Config config = ConfigRegistry.getOrCreate("examplemod_client");
+```
+
+Because the id is the registry key, call sites that share an id share one `Config` (and one set of
+files), while distinct ids are fully independent — so you can split a mod's settings across several
+configs by giving each its own id. Keep ids unique and filesystem-safe; your mod id is convenient
+precisely because it already is.
+
 ## The optional bootstrap hook
 
 Add a static `bootstrap(Config config)` method inside your `Configs` class when you need setup
