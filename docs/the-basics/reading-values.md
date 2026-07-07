@@ -68,6 +68,19 @@ if (value.isPresent()) {
 value's type, so a present value can still fail a strict `asX()` read if it is the wrong type.
 `isEmpty()` is its inverse.
 
+## Rendering a value for display
+
+`asDisplayString()` renders whatever is stored — boolean, number, or string — as a string, so
+command output and generated config screens don't have to switch on the value's type. It returns
+`""` when the path is absent (pair with `isPresent()` to tell absent from empty):
+
+```java
+for (ConfigDefinition<?> def : config.definitions()) {
+    String path = def.path().fullPath();
+    player.sendMessage(path + " = " + getConfig(path).asDisplayString());
+}
+```
+
 > [!TIP]
 > When reading a path that may not exist, either test `isPresent()` first or use the fallback
 > overload (`asFloat(1.0f)`) — both avoid a thrown `ConfigException`.
