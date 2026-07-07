@@ -32,7 +32,7 @@ public final class LogisticsMod implements ConfigHost {
         public static final ConfigKey<Double> STIRLING_MIN_OUTPUT =
                 config.defineDouble("engines.stirling.min_output", 3.0)
                         .min(0.0)
-                        .maxValueOf(() -> STIRLING_MAX_OUTPUT)
+                        .maxValueOf(() -> Configs.STIRLING_MAX_OUTPUT)
                         .describe("Stirling engine minimum RF/t output.")
                         .register();
 
