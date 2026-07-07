@@ -106,7 +106,9 @@ public static final ConfigKey<String> ENERGY_UNIT =
 | Step | Available on | Purpose |
 | --- | --- | --- |
 | `defineBoolean/defineString/defineInt/defineLong/defineFloat/defineDouble(path[, default])` | `config` | start a typed definition (shorthand for `define(path).asX()`) |
+| `defineEnum(path, EnumType.class)` / `defineEnum(path, defaultConstant)` | `config` | start an enum definition (shorthand for `define(path).asEnum(...)`) |
 | `asBoolean/asString/asInt/asLong/asFloat/asDouble()` | `define(path)` | choose the value type (long form) |
+| `asEnum(EnumType.class)` | `define(path)` | type the value as an enum, stored by constant `name()` |
 | `defaultValue(v)` / `defaultsTo(v)` | all types | required fallback value |
 | `min(v)` / `max(v)` / `range(lo, hi)` | numeric types | fixed bounds |
 | `minValueOf(...)` / `maxValueOf(...)` | numeric types | bounds tied to another key |

@@ -160,6 +160,36 @@ public final class ConfigValue {
         return readOrFallback(ConfigType.DOUBLE, fallback);
     }
 
+    /**
+     * {@return the value as a constant of {@code enumClass}}
+     *
+     * @param enumClass the enum type
+     * @param <E> the enum type
+     * @throws ConfigException if the value is missing or not one of the enum's constant names
+     */
+    public <E extends Enum<E>> E asEnum(Class<E> enumClass) {
+        try {
+            return ConfigValues.fromJson(element, ConfigType.ENUM, enumClass);
+        } catch (ConfigException e) {
+            throw new ConfigException("Invalid config value at " + path.fullPath() + ": " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * {@return the value as a constant of {@code enumClass}, or {@code fallback} if coercion fails}
+     *
+     * @param enumClass the enum type
+     * @param fallback the value to return when the value is missing or not a valid constant name
+     * @param <E> the enum type
+     */
+    public <E extends Enum<E>> E asEnum(Class<E> enumClass, E fallback) {
+        try {
+            return ConfigValues.fromJson(element, ConfigType.ENUM, enumClass);
+        } catch (ConfigException ignored) {
+            return fallback;
+        }
+    }
+
     private <T> T read(ConfigType type) {
         try {
             return ConfigValues.fromJson(element, type);

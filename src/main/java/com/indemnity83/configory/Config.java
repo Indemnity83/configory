@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.indemnity83.configory.builder.BooleanConfigBuilder;
 import com.indemnity83.configory.builder.ConfigDefinitionBuilder;
 import com.indemnity83.configory.builder.DoubleConfigBuilder;
+import com.indemnity83.configory.builder.EnumConfigBuilder;
 import com.indemnity83.configory.builder.FloatConfigBuilder;
 import com.indemnity83.configory.builder.IntConfigBuilder;
 import com.indemnity83.configory.builder.LongConfigBuilder;
@@ -242,6 +243,36 @@ public final class Config {
     }
 
     /**
+     * Begins a fluent definition for an enum value at the given path.
+     *
+     * <p>Shorthand for {@code define(path).asEnum(enumClass)}. The value is stored by its
+     * {@code name()}.
+     *
+     * @param path a dotted path or bare key; see {@link ConfigPath}
+     * @param enumClass the enum type
+     * @param <E> the enum type
+     * @return an enum builder for setting a default, optional constraints, and registering
+     */
+    public <E extends Enum<E>> EnumConfigBuilder<E> defineEnum(String path, Class<E> enumClass) {
+        return define(path).asEnum(enumClass);
+    }
+
+    /**
+     * Begins a fluent definition for an enum value with its default already set.
+     *
+     * <p>Shorthand for {@code define(path).asEnum(...).defaultValue(defaultValue)}; the enum type is
+     * inferred from the default.
+     *
+     * @param path a dotted path or bare key; see {@link ConfigPath}
+     * @param defaultValue the value used when the key is unset or a stored value is invalid
+     * @param <E> the enum type
+     * @return an enum builder for adding optional constraints and registering
+     */
+    public <E extends Enum<E>> EnumConfigBuilder<E> defineEnum(String path, E defaultValue) {
+        return defineEnum(path, defaultValue.getDeclaringClass()).defaultValue(defaultValue);
+    }
+
+    /**
      * Registers a completed definition and returns a typed key bound to this config.
      *
      * <p>Called by the builder's {@code register()}; rarely invoked directly.
@@ -298,7 +329,8 @@ public final class Config {
         if (element == null || element.isJsonNull()) {
             return key.definition().defaultValue();
         }
-        T value = ConfigValues.fromJson(element, key.definition().type());
+        T value = ConfigValues.fromJson(
+                element, key.definition().type(), key.definition().valueClass());
         // Skip validation while this key is already being validated higher on the stack, so mutually
         // referential cross-field validators (e.g. a minValueOf/maxValueOf pair) read each other's
         // value instead of recursing until the stack overflows.
@@ -568,7 +600,7 @@ public final class Config {
             return;
         }
         try {
-            T value = ConfigValues.fromJson(element, definition.type());
+            T value = ConfigValues.fromJson(element, definition.type(), definition.valueClass());
             ValidationResult result = definition.validate(value, this);
             if (!result.valid()) {
                 writeDefault(document, definition);
@@ -606,8 +638,10 @@ public final class Config {
     private <T> boolean isValidFor(ConfigDefinition<T> definition, Object value) {
         T coerced;
         try {
-            coerced =
-                    definition.valueClass().cast(ConfigValues.fromJson(ConfigValues.toJson(value), definition.type()));
+            coerced = definition
+                    .valueClass()
+                    .cast(ConfigValues.fromJson(
+                            ConfigValues.toJson(value), definition.type(), definition.valueClass()));
         } catch (ConfigException e) {
             return false;
         }
