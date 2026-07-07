@@ -29,9 +29,10 @@ A single call performs, in order:
 2. **Force-initialize** it, which runs the `static final` field initializers and registers every
    key with the config.
 3. **Run** the optional `Configs.bootstrap(Config)` hook, if present.
-4. **Load** the config files — reading each file, applying defaults for missing keys, validating
-   stored values (replacing invalid ones with defaults and marking those files dirty), and finally
-   running any registered sanitize hooks.
+4. **Load** the config tree — the main config's file **and** every child config declared with
+   `configFor(modId, "<name>")` (each at `config/<modid>/<name>.json`): reading each file, applying
+   defaults for missing keys, validating stored values (replacing invalid ones with defaults and
+   marking the config dirty), and finally running any registered sanitize hooks.
 
 After it returns, every value is defined, loaded, validated, and ready to read.
 
@@ -50,22 +51,19 @@ The no-arg `bootstrapConfig()` looks for a `public static final String` field na
 then `MODID`, on the host class. It throws a `ConfigException` if neither exists (or the value is
 blank) — in that case pass the id explicitly.
 
-## Advanced: using an id other than your mod id
+## The id is the file location
 
-The id is just a string: it names the config folder (`config/<id>/`) and is the key the registry
-shares instances under. Matching your mod id is the convention — and what the no-arg forms
-auto-resolve — but nothing requires it. For full control, pass any id to the explicit forms:
+A config's id *is* where its file lives: `configFor("examplemod")` → `config/examplemod.json`, and a
+dotted id nests into subdirectories. The idiomatic way to add a file is `configFor(MOD_ID, "engines")`
+(→ `config/examplemod/engines.json`), which `bootstrapConfig(MOD_ID)` loads automatically alongside
+the main config. You can also address any id directly — nothing requires it to match your mod id:
 
 ```java
-bootstrapConfig("examplemod_client");                        // ConfigHost
-Config config = configFor("examplemod_client");              // inside a Configs holder
-Config config = ConfigRegistry.getOrCreate("examplemod_client");
+Config shared = ConfigRegistry.getOrCreate("some_shared_namespace");  // config/some_shared_namespace.json
 ```
 
-Because the id is the registry key, call sites that share an id share one `Config` (and one set of
-files), while distinct ids are fully independent — so you can split a mod's settings across several
-configs by giving each its own id. Keep ids unique and filesystem-safe; your mod id is convenient
-precisely because it already is.
+Call sites that share an id share one `Config` (and one file); distinct ids are fully independent.
+Keep ids unique and filesystem-safe — your mod id is convenient precisely because it already is.
 
 ## The optional bootstrap hook
 

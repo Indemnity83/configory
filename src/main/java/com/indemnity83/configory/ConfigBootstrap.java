@@ -15,6 +15,9 @@ final class ConfigBootstrap {
         forceInitialize(entriesClass);
         invokeOptionalBootstrap(entriesClass, config);
         config.load();
+        for (Config child : ConfigRegistry.childConfigs(config.id())) {
+            child.load();
+        }
     }
 
     private static Class<?> findConfigEntriesClass(Class<?> hostClass) {

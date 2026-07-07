@@ -1,9 +1,13 @@
 # Generated Files
 
-Configory writes plain JSON, and the path you define maps directly onto the file and key layout.
-Seeing the exact output makes the [path rules](the-basics/configuration-paths.md) concrete.
+Configory writes plain JSON. A config's **id** decides the file; its keys' **dotted paths** nest
+inside that file. Seeing the exact output makes the [path rules](the-basics/configuration-paths.md)
+concrete.
 
-## A dotted path
+## The main config file
+
+Keys defined on the main config (`config = configFor("examplemod")`) all live in one
+`examplemod.json`:
 
 ```java
 public static final ConfigKey<Float> SPEED_MULTIPLIER =
@@ -16,20 +20,30 @@ public static final ConfigKey<Float> SPEED_MULTIPLIER =
 writes:
 
 ```text
-.minecraft/config/examplemod/core.json
+.minecraft/config/examplemod.json
 ```
 
 ```json
 {
-  "speed_multiplier": 1.0
+  "core": {
+    "speed_multiplier": 1.0
+  }
 }
 ```
 
-## A nested path
+A dot-less path is just a top-level key (`defineFloat("speed_multiplier", 1.0f)` →
+`{ "speed_multiplier": 1.0 }`).
+
+## A second file
+
+Declare an extra config with `configFor("examplemod", "engines")` and its keys land in
+`config/examplemod/engines.json`:
 
 ```java
+private static final Config engines = configFor(MOD_ID, "engines");
+
 public static final ConfigKey<Double> STIRLING_MIN_OUTPUT =
-        config.defineDouble("engines.stirling.min_output", 3.0)
+        engines.defineDouble("stirling.min_output", 3.0)
                 .min(0.0)
                 .describe("Stirling engine minimum RF/t output.")
                 .register();
@@ -49,28 +63,8 @@ writes:
 }
 ```
 
-## A bare key (single-file mode)
-
-For a simple mod that only uses bare keys:
-
-```java
-public static final ConfigKey<Float> SPEED_MULTIPLIER =
-        config.defineFloat("speed_multiplier", 1.0f)
-                .range(0.1f, 10.0f)
-                .register();
-```
-
-writes a single default file:
-
-```text
-.minecraft/config/examplemod/config.json
-```
-
-```json
-{
-  "speed_multiplier": 1.0
-}
-```
+The main `examplemod.json` and the `examplemod/` folder coexist side by side.
+`bootstrapConfig(MOD_ID)` loads both.
 
 > [!NOTE]
 > Descriptions (`.describe(...)`) do **not** appear in the JSON — they're metadata for tooling,
@@ -78,5 +72,5 @@ writes a single default file:
 
 ## Next steps
 
-- [Configuration Paths](the-basics/configuration-paths.md) — the full path-to-file rules.
+- [Configuration Paths](the-basics/configuration-paths.md) — the full id-to-file and nesting rules.
 - [Custom Storage Backends](digging-deeper/custom-storage.md) — write somewhere other than disk.

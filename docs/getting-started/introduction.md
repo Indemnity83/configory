@@ -10,10 +10,12 @@ aims to make the common case pleasant while keeping type safety where mod code n
   guesses at value types or misspells a path.
 - **Dot-notation paths** — a single string like `"core.speed_multiplier"` addresses a value,
   which is ideal for commands, debug tools, and generated screens.
-- **A single-file mode** — simple mods can use bare keys that all land in one `config.json`.
+- **One file per config** — a simple mod is a single `config/<modid>.json`; dotted paths just nest
+  inside it.
 - **Fluent validation** — declare ranges, allowed values, and custom rules right next to the
   definition.
-- **Per-mod isolation** — each mod gets its own folder under the Minecraft config directory.
+- **Per-mod isolation** — each config is its own file under the Minecraft config directory (and a
+  multi-file mod gets its own folder).
 - **Explicit save and reload** — runtime mutation never surprises you by writing to disk; you
   decide when to persist.
 - **A lightweight bootstrap convention** — one call wires up definition, loading, defaults,

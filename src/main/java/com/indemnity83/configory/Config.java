@@ -16,28 +16,33 @@ import java.nio.file.Path;
 import java.util.*;
 
 /**
- * A single mod's isolated configuration namespace.
+ * A single JSON file's worth of typed configuration.
  *
- * <p>A {@code Config} owns a set of typed {@link ConfigDefinition definitions}, an in-memory copy of
- * each backing JSON document, and the set of files with unsaved runtime changes. Values are
- * addressed by dotted paths (see {@link ConfigPath}): the first segment names the file and the
- * remaining segments traverse the JSON tree, while a bare key with no dot lands in the reserved
- * default {@code config.json}.
+ * <p>A {@code Config} owns a set of typed {@link ConfigDefinition definitions} and an in-memory copy
+ * of one backing JSON document. Values are addressed by dotted {@link ConfigPath paths} whose every
+ * dot is a nesting boundary. Which file the document lives in is decided by the {@linkplain #id()
+ * config id}: {@code "examplemod"} maps to {@code config/examplemod.json} and
+ * {@code "examplemod.engines"} to {@code config/examplemod/engines.json}.
  *
  * <p>The typical lifecycle is: declare keys with {@link #define(String)}, call {@link #load()} once
- * to read files from disk (applying defaults, validating, and running sanitize hooks), then read
+ * to read the file from disk (applying defaults, validating, and running sanitize hooks), then read
  * with {@link #get(ConfigKey)} / {@link #get(String)} and mutate with {@link #set(ConfigKey, Object)}
- * / {@link #set(String, Object)}. Mutations only update the in-memory document and mark the file
- * dirty; changes are written to disk only when {@link #save()} (or {@link #save(String)}) is called.
+ * / {@link #set(String, Object)}. Mutations only update the in-memory document and mark the config
+ * dirty; changes are written to disk only when {@link #save()} is called.
  *
  * <p>Instances are usually obtained from {@link ConfigRegistry} rather than constructed directly, so
- * that each mod id maps to exactly one shared instance.
+ * that each id maps to exactly one shared instance.
+ *
+ * <p><strong>Threading:</strong> a {@code Config} is not thread-safe. The registry hands out one
+ * shared instance per id, but a given instance expects single-threaded use (the common case: load on
+ * the mod's init thread, then read/write from game logic on the server thread). Guard it externally
+ * if you must touch the same config from multiple threads.
  */
 public final class Config {
     private final String id;
     private final ConfigStorage storage;
-    private final Map<String, JsonObject> documents = new HashMap<>();
-    private final Set<String> dirtyFiles = new HashSet<>();
+    private JsonObject document;
+    private boolean dirty;
     private final Map<ConfigPath, ConfigDefinition<?>> definitions = new LinkedHashMap<>();
     private final List<Runnable> sanitizeHooks = new ArrayList<>();
     private final Set<ConfigPath> validating = new HashSet<>();
@@ -48,31 +53,36 @@ public final class Config {
     }
 
     /**
-     * Creates a config backed by JSON files under {@code config/<id>/} relative to the working
-     * directory (the Minecraft config directory at runtime).
+     * Creates a config backed by a JSON file under {@code config/} relative to the working directory
+     * (the Minecraft config directory at runtime). The id decides the file: {@code "examplemod"} →
+     * {@code config/examplemod.json}, {@code "examplemod.engines"} →
+     * {@code config/examplemod/engines.json}.
      *
-     * @param id the mod id; also the folder name that isolates this config from other mods
+     * @param id the config id; its dots become subdirectories, its last segment the file name
      * @return a new, empty config with no definitions registered and nothing loaded yet
+     * @throws ConfigException if the id is blank or has an unsafe segment
      */
     public static Config create(String id) {
-        Path defaultRoot = Path.of("config").resolve(id);
-        return new Config(id, new JsonFileConfigStorage(defaultRoot));
+        validateId(id);
+        return new Config(id, new JsonFileConfigStorage(Path.of("config")));
     }
 
     /**
      * Creates a config backed by the supplied {@link ConfigStorage}, allowing custom persistence
      * (for example an in-memory store in tests).
      *
-     * @param id the mod id used to scope and identify this config
-     * @param storage the storage implementation that loads and saves each file's JSON document
+     * @param id the config id used to scope and identify this config
+     * @param storage the storage implementation that loads and saves the config's JSON document
      * @return a new, empty config with no definitions registered and nothing loaded yet
+     * @throws ConfigException if the id is blank or has an unsafe segment
      */
     public static Config create(String id, ConfigStorage storage) {
+        validateId(id);
         return new Config(id, storage);
     }
 
     /**
-     * {@return the mod id this config is scoped to}
+     * {@return the id this config is scoped to (also its file location)}
      */
     public String id() {
         return id;
@@ -85,7 +95,7 @@ public final class Config {
      * value, optional constraints, and finally {@code register()} to obtain a {@link ConfigKey}.
      *
      * @param path a dotted path such as {@code "core.speed_multiplier"} or a bare key such as
-     *     {@code "speed_multiplier"}; see {@link ConfigPath} for how paths map to files
+     *     {@code "speed_multiplier"}; every dot is a nesting boundary (see {@link ConfigPath})
      * @return a builder for declaring the value's type, default, and validation
      */
     public ConfigDefinitionBuilder define(String path) {
@@ -304,7 +314,7 @@ public final class Config {
      */
     public ConfigValue get(String path) {
         ConfigPath configPath = ConfigPath.parse(path);
-        JsonObject document = document(configPath.file());
+        JsonObject document = documentOrLoad();
         JsonElement element = JsonPaths.get(document, configPath);
         return new ConfigValue(this, configPath, element);
     }
@@ -324,7 +334,7 @@ public final class Config {
      */
     public <T> T get(ConfigKey<T> key) {
         assertOwns(key);
-        JsonObject document = document(key.path().file());
+        JsonObject document = documentOrLoad();
         JsonElement element = JsonPaths.get(document, key.path());
         if (element == null || element.isJsonNull()) {
             return key.definition().defaultValue();
@@ -345,11 +355,11 @@ public final class Config {
     }
 
     /**
-     * Writes a value at the given path in memory, marking the backing file dirty if the value
+     * Writes a value at the given path in memory, marking the config dirty if the value
      * changed.
      *
      * <p>This does not validate against any definition and does not write to disk. Chain
-     * {@link ConfigMutation#save()} on the result to persist just the affected file. Use
+     * {@link ConfigMutation#save()} on the result to persist the config. Use
      * {@link #trySet(String, Object)} instead to reject values that violate a definition's
      * constraints.
      *
@@ -366,7 +376,7 @@ public final class Config {
     }
 
     /**
-     * Writes a typed value for a registered key after validating it, marking the backing file dirty
+     * Writes a typed value for a registered key after validating it, marking the config dirty
      * if the value changed.
      *
      * <p>Validation runs before the write, so invalid values are rejected rather than stored. The
@@ -436,44 +446,31 @@ public final class Config {
     }
 
     /**
-     * Loads every file referenced by a registered definition from storage, replacing all in-memory
-     * state.
+     * Loads this config's file from storage, replacing all in-memory state.
      *
      * <p>After reading, this applies defaults for any missing keys, replaces values that are invalid
-     * or of the wrong type with their defaults (marking those files dirty so the repaired values can
-     * be saved back), and finally runs any registered sanitize hooks. Existing in-memory documents
-     * and the dirty-file set are discarded first.
+     * or of the wrong type with their defaults (marking the config dirty so the repaired values can
+     * be saved back), and finally runs any registered sanitize hooks.
      */
     public void load() {
-        documents.clear();
-        dirtyFiles.clear();
-        for (String file : referencedFiles()) {
-            documents.put(file, storage.load(file));
-        }
+        document = storage.load(id);
+        dirty = false;
         applyDefaultsAndValidate();
         runSanitizeHooks();
     }
 
-    private Set<String> referencedFiles() {
-        Set<String> files = new LinkedHashSet<>();
-        for (ConfigDefinition<?> definition : definitions.values()) {
-            files.add(definition.path().file());
-        }
-        return files;
-    }
-
     /**
-     * Re-reads all config files from disk, but only when there are no unsaved changes.
+     * Re-reads this config's file from disk, but only when there are no unsaved changes.
      *
      * <p>This is the safe reload: it refuses to silently discard runtime mutations. To reload while
      * throwing away unsaved changes, use {@link #discardAndReload()}.
      *
-     * @throws ConfigException if any file is dirty; save or discard the changes first
+     * @throws ConfigException if the config is dirty; save or discard the changes first
      */
     public void reload() {
-        if (!dirtyFiles.isEmpty()) {
-            throw new ConfigException("Cannot reload config '" + id + "' because unsaved changes exist: " + dirtyFiles
-                    + ". Call save() or discardAndReload().");
+        if (dirty) {
+            throw new ConfigException("Cannot reload config '" + id
+                    + "' because it has unsaved changes. Call save() or discardAndReload().");
         }
         load();
     }
@@ -489,44 +486,22 @@ public final class Config {
     }
 
     /**
-     * Writes every dirty file to storage and clears the dirty set.
+     * Writes this config's file to storage and clears its dirty flag.
      *
-     * <p>Files with no pending changes are not touched.
+     * <p>Does nothing if there are no pending changes.
      */
     public void save() {
-        for (String file : List.copyOf(dirtyFiles)) {
-            save(file);
+        if (dirty && document != null) {
+            storage.save(id, document);
+            dirty = false;
         }
     }
 
     /**
-     * Writes a single file to storage and clears its dirty flag.
-     *
-     * <p>Does nothing if no in-memory document exists for the given file.
-     *
-     * @param file the file name (first path segment, without the {@code .json} extension)
-     */
-    public void save(String file) {
-        JsonObject document = documents.get(file);
-        if (document == null) {
-            return;
-        }
-        storage.save(file, document);
-        dirtyFiles.remove(file);
-    }
-
-    /**
-     * {@return whether any file has unsaved runtime changes}
+     * {@return whether this config has unsaved runtime changes}
      */
     public boolean isDirty() {
-        return !dirtyFiles.isEmpty();
-    }
-
-    /**
-     * {@return an immutable snapshot of the file names with unsaved changes}
-     */
-    public Set<String> dirtyFiles() {
-        return Set.copyOf(dirtyFiles);
+        return dirty;
     }
 
     /**
@@ -571,19 +546,22 @@ public final class Config {
     }
 
     private ConfigMutation setRaw(ConfigPath path, Object value) {
-        JsonObject document = document(path.file());
+        JsonObject document = documentOrLoad();
         JsonElement previous = JsonPaths.get(document, path);
         JsonElement next = ConfigValues.toJson(value);
         boolean changed = previous == null || !previous.equals(next);
         if (changed) {
             JsonPaths.set(document, path, next);
-            dirtyFiles.add(path.file());
+            dirty = true;
         }
         return new ConfigMutation(this, path, changed);
     }
 
-    private JsonObject document(String file) {
-        return documents.computeIfAbsent(file, storage::load);
+    private JsonObject documentOrLoad() {
+        if (document == null) {
+            document = storage.load(id);
+        }
+        return document;
     }
 
     private void applyDefaultsAndValidate() {
@@ -593,7 +571,7 @@ public final class Config {
     }
 
     private <T> void validateOrApplyDefault(ConfigDefinition<T> definition) {
-        JsonObject document = document(definition.path().file());
+        JsonObject document = documentOrLoad();
         JsonElement element = JsonPaths.get(document, definition.path());
         if (element == null || element.isJsonNull()) {
             writeDefault(document, definition);
@@ -612,7 +590,7 @@ public final class Config {
 
     private void writeDefault(JsonObject document, ConfigDefinition<?> definition) {
         JsonPaths.set(document, definition.path(), ConfigValues.toJson(definition.defaultValue()));
-        dirtyFiles.add(definition.path().file());
+        dirty = true;
     }
 
     private void runSanitizeHooks() {
@@ -632,6 +610,18 @@ public final class Config {
         if (!result.valid()) {
             throw new ConfigValidationException(
                     "Invalid config value at " + key.path().fullPath() + ": " + result.message());
+        }
+    }
+
+    private static void validateId(String id) {
+        Objects.requireNonNull(id, "id");
+        if (id.isBlank()) {
+            throw new ConfigException("Config id cannot be blank.");
+        }
+        for (String segment : id.split("\\.", -1)) {
+            if (ConfigPath.isUnsafeSegment(segment)) {
+                throw new ConfigException("Invalid config id (unsafe or empty segment): " + id);
+            }
         }
     }
 

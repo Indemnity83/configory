@@ -9,6 +9,7 @@ public final class BootstrapTestMod implements ConfigHost {
 
     public static final class Configs extends ConfigEntries {
         private static final Config config = configFor(MOD_ID);
+        private static final Config engines = configFor(MOD_ID, "engines");
 
         private Configs() {}
 
@@ -21,6 +22,11 @@ public final class BootstrapTestMod implements ConfigHost {
 
         public static final ConfigKey<Integer> COUNT =
                 config.define("core.count").asInt().defaultValue(4).min(0).register();
+
+        public static final ConfigKey<Double> STIRLING_MIN = engines.define("stirling.min_output")
+                .asDouble()
+                .defaultValue(3.0)
+                .register();
 
         static boolean bootstrapRan = false;
 

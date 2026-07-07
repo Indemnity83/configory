@@ -4,7 +4,7 @@
 
 Configory is a small Java configuration library for Minecraft mods that combines:
 
-- dot-notation paths (or a single default file for simple mods)
+- dot-notation paths that nest into one JSON file per config
 - typed config keys
 - fluent validation
 - per-mod config isolation
@@ -60,12 +60,13 @@ float speed = getConfig("core.speed_multiplier").asFloat();
 
 ## Core concepts
 
-- **One config instance per mod.** The mod id becomes a folder under the Minecraft config
-  directory, so mods never collide: `config/<modid>/core.json`.
-- **Dot-notation paths.** The first segment names the file, the rest traverse JSON —
-  `"engines.stirling.min_output"` lives in `engines.json`.
-- **Single-file mode.** A path with no dot is a bare key that lands in the default `config.json`,
-  ideal for simple mods.
+- **The config id is the file.** A simple mod is one `config/<modid>.json`; mods never collide
+  because each is scoped to its own id.
+- **Dot-notation paths are pure nesting.** `"engines.stirling.min_output"` nests
+  `engines → stirling → min_output` inside the config's file — no hidden "first segment is a file"
+  rule.
+- **Multiple files when you want them.** Declare extra configs with `configFor(MOD_ID, "engines")`
+  (→ `config/<modid>/engines.json`); `bootstrapConfig(MOD_ID)` loads the whole tree.
 - **Typed keys and string paths.** `ConfigKey<T>` constants give Java type safety for mod code;
   string paths give flexibility for commands and tools.
 - **Explicit save and reload.** Runtime `set` changes memory only; nothing hits disk until you

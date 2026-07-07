@@ -4,40 +4,25 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * A parsed config path: the file it lives in plus the segments that traverse the JSON tree within
- * that file.
+ * A parsed config path: the dotted key segments that traverse the JSON tree within a config's file.
  *
- * <p>Paths are dotted: the first segment is the file (without the {@code .json} extension) and the
- * rest walk into nested JSON objects. So {@code "engines.stirling.min_output"} targets
- * {@code engines.json} at {@code stirling -> min_output}. A path with no dot is a bare key and lands
- * in the reserved default file (see {@link #DEFAULT_FILE}), so {@code "speed_multiplier"} and the
- * explicit alias {@code "config.speed_multiplier"} refer to the same value in {@code config.json}.
+ * <p>Every dot is a nesting boundary, so {@code "engines.stirling.min_output"} addresses
+ * {@code engines -> stirling -> min_output} inside the config's document. Which file a config lives
+ * in is decided by the {@linkplain Config#id() config id}, not by the path.
  *
- * @param file the file name (first segment), without the {@code .json} extension
- * @param segments the value segments within the file; never empty and containing no blank entries
+ * @param segments the value segments; never empty and containing no blank entries
  */
-public record ConfigPath(String file, List<String> segments) {
-    /**
-     * The reserved default file name. A path with no {@code .} (a bare key) lands here, so
-     * {@code "speed_multiplier"} and the explicit alias {@code "config.speed_multiplier"} both
-     * resolve to {@code config.json}.
-     */
-    public static final String DEFAULT_FILE = "config";
-
+public record ConfigPath(List<String> segments) {
     /**
      * Canonical constructor that validates and defensively copies the segments.
      *
-     * @throws NullPointerException if {@code file} or {@code segments} is null
-     * @throws ConfigException if the file is blank, there are no segments, or any segment is blank
+     * @throws NullPointerException if {@code segments} is null
+     * @throws ConfigException if there are no segments, or any segment is blank
      */
     public ConfigPath {
-        Objects.requireNonNull(file, "file");
         Objects.requireNonNull(segments, "segments");
-        if (file.isBlank()) {
-            throw new ConfigException("Config path file segment cannot be blank.");
-        }
         if (segments.isEmpty()) {
-            throw new ConfigException("Config path must include a file and at least one value segment.");
+            throw new ConfigException("Config path must include at least one segment.");
         }
         for (String segment : segments) {
             if (segment == null || segment.isBlank()) {
@@ -48,10 +33,10 @@ public record ConfigPath(String file, List<String> segments) {
     }
 
     /**
-     * Parses a dotted path string.
+     * Parses a dotted path string into its nested key segments.
      *
-     * <p>A single segment (no dot) becomes a bare key in {@link #DEFAULT_FILE}; otherwise the first
-     * segment is the file and the rest are the value segments.
+     * <p>Every dot is a nesting boundary, so {@code "core.speed_multiplier"} nests
+     * {@code speed_multiplier} under {@code core}, and a dot-less string is a single top-level key.
      *
      * @param raw the path string, e.g. {@code "core.speed_multiplier"} or {@code "speed_multiplier"}
      * @return the parsed path
@@ -68,25 +53,37 @@ public record ConfigPath(String file, List<String> segments) {
                 throw new ConfigException("Config path contains an empty segment: " + raw);
             }
         }
-        boolean bareKey = parts.length == 1;
-        if (bareKey) {
-            return new ConfigPath(DEFAULT_FILE, List.of(parts[0]));
-        }
-        return new ConfigPath(parts[0], List.of(parts).subList(1, parts.length));
+        return new ConfigPath(List.of(parts));
     }
 
     /**
-     * {@return the fully qualified dotted form {@code file.segment[.segment...]}}
-     *
-     * <p>Bare keys render in their explicit {@code config.<key>} form, so the backing file is never
-     * ambiguous in logs and error messages.
+     * {@return the dotted form {@code segment[.segment...]}}
      */
     public String fullPath() {
-        return file + "." + String.join(".", segments);
+        return String.join(".", segments);
     }
 
     /**
-     * {@return the {@linkplain #fullPath() fully qualified path}}
+     * {@return whether {@code segment} is unsafe as a config-id part or the file/directory name
+     * derived from it}
+     *
+     * <p>A segment is unsafe if it is blank, a path-traversal token ({@code "."} or {@code ".."}), or
+     * contains a path separator. This is the single rule guarding both {@linkplain Config#id() config
+     * ids} and the on-disk paths derived from them.
+     *
+     * @param segment the segment to check
+     */
+    public static boolean isUnsafeSegment(String segment) {
+        return segment == null
+                || segment.isBlank()
+                || segment.equals(".")
+                || segment.equals("..")
+                || segment.indexOf('/') >= 0
+                || segment.indexOf('\\') >= 0;
+    }
+
+    /**
+     * {@return the {@linkplain #fullPath() dotted path}}
      */
     @Override
     public String toString() {

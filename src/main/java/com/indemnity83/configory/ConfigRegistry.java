@@ -1,6 +1,8 @@
 package com.indemnity83.configory;
 
 import com.indemnity83.configory.storage.ConfigStorage;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -62,5 +64,25 @@ public final class ConfigRegistry {
      */
     public static Config getOrCreate(String id, ConfigStorage storage) {
         return config(id, storage);
+    }
+
+    /**
+     * {@return every registered config nested under {@code modId} — ids starting with
+     * {@code modId + "."}; the main config for {@code modId} itself is not included}
+     *
+     * <p>Used by the bootstrap convention to load a mod's whole config tree. The trailing dot keeps
+     * one mod's children from matching another whose id merely shares a prefix.
+     *
+     * @param modId the mod id whose child configs to collect
+     */
+    public static List<Config> childConfigs(String modId) {
+        String prefix = modId + ".";
+        List<Config> children = new ArrayList<>();
+        for (Config config : CONFIGS.values()) {
+            if (config.id().startsWith(prefix)) {
+                children.add(config);
+            }
+        }
+        return children;
     }
 }

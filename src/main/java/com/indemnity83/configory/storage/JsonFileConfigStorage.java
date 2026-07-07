@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.indemnity83.configory.ConfigException;
+import com.indemnity83.configory.ConfigPath;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
@@ -12,11 +13,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * The default {@link ConfigStorage}: stores each file as a pretty-printed {@code <file>.json} under a
- * root directory.
+ * The default {@link ConfigStorage}: stores each config as a pretty-printed {@code .json} file under a
+ * root directory, keyed by config id.
  *
- * <p>Files are resolved as {@code <rootDirectory>/<file>.json}. Loading a missing file yields an
- * empty document, and saving creates any missing parent directories. This is the storage
+ * <p>The config id's dots become subdirectories: {@code "examplemod"} resolves to
+ * {@code <rootDirectory>/examplemod.json} and {@code "examplemod.engines"} to
+ * {@code <rootDirectory>/examplemod/engines.json}. Loading a missing file yields an empty document,
+ * and saving creates any missing parent directories. This is the storage
  * {@link com.indemnity83.configory.Config#create(String)} uses.
  */
 public final class JsonFileConfigStorage implements ConfigStorage {
@@ -26,7 +29,7 @@ public final class JsonFileConfigStorage implements ConfigStorage {
     /**
      * Creates a storage rooted at the given directory.
      *
-     * @param rootDirectory the directory under which {@code <file>.json} files are read and written
+     * @param rootDirectory the directory under which {@code <id>.json} files are read and written
      */
     public JsonFileConfigStorage(Path rootDirectory) {
         this.rootDirectory = rootDirectory;
@@ -41,8 +44,8 @@ public final class JsonFileConfigStorage implements ConfigStorage {
      * @throws ConfigException if the file exists but cannot be read or parsed as JSON
      */
     @Override
-    public JsonObject load(String file) {
-        Path path = pathFor(file);
+    public JsonObject load(String id) {
+        Path path = pathFor(id);
         if (!Files.exists(path)) {
             return new JsonObject();
         }
@@ -62,8 +65,8 @@ public final class JsonFileConfigStorage implements ConfigStorage {
      * @throws ConfigException if the file cannot be written
      */
     @Override
-    public void save(String file, JsonObject root) {
-        Path path = pathFor(file);
+    public void save(String id, JsonObject root) {
+        Path path = pathFor(id);
         try {
             Files.createDirectories(path.getParent());
             try (Writer writer = Files.newBufferedWriter(path)) {
@@ -74,7 +77,17 @@ public final class JsonFileConfigStorage implements ConfigStorage {
         }
     }
 
-    private Path pathFor(String file) {
-        return rootDirectory.resolve(file + ".json");
+    private Path pathFor(String id) {
+        String[] segments = id.split("\\.", -1);
+        Path path = rootDirectory;
+        for (int i = 0; i < segments.length; i++) {
+            String segment = segments[i];
+            if (ConfigPath.isUnsafeSegment(segment)) {
+                throw new ConfigException("Unsafe config file name: " + id);
+            }
+            boolean last = i == segments.length - 1;
+            path = path.resolve(last ? segment + ".json" : segment);
+        }
+        return path;
     }
 }

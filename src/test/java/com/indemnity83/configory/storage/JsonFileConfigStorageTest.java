@@ -58,4 +58,23 @@ class JsonFileConfigStorageTest {
 
         assertTrue(Files.exists(nestedRoot.resolve("core.json")));
     }
+
+    @Test
+    void dottedIdNestsIntoSubdirectories() {
+        JsonFileConfigStorage storage = new JsonFileConfigStorage(root);
+        JsonObject document = new JsonObject();
+        document.add("value", new JsonPrimitive(3.0));
+
+        storage.save("examplemod.engines", document);
+
+        assertTrue(Files.exists(root.resolve("examplemod").resolve("engines.json")));
+        assertEquals(3.0, storage.load("examplemod.engines").get("value").getAsDouble());
+    }
+
+    @Test
+    void rejectsPathTraversalIds() {
+        JsonFileConfigStorage storage = new JsonFileConfigStorage(root);
+        assertThrows(ConfigException.class, () -> storage.load(".."));
+        assertThrows(ConfigException.class, () -> storage.save("..evil", new JsonObject()));
+    }
 }

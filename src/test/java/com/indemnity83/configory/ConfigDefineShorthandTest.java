@@ -112,7 +112,7 @@ class ConfigDefineShorthandTest {
         ConfigKey<Double> efficiency =
                 config.defineDouble("machines.efficiency", 0.85).register();
         config.load();
-        assertTrue(config.dirtyFiles().contains("machines"));
+        assertTrue(config.isDirty());
         assertEquals(0.85, config.get(efficiency));
     }
 }

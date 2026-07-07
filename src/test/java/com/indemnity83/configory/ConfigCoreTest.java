@@ -36,7 +36,6 @@ class ConfigCoreTest {
     void loadWritesDefaultsAndMarksDirty() {
         config.load();
         assertTrue(config.isDirty(), "missing keys get their defaults written, which is a pending change");
-        assertTrue(config.dirtyFiles().contains("core"));
         assertEquals(1.0f, config.get(speed));
     }
 
@@ -45,20 +44,25 @@ class ConfigCoreTest {
         config.load();
         config.save();
         assertFalse(config.isDirty());
-        assertTrue(storage.has("core"));
-    }
-
-    @Test
-    void saveIsNoOpForFileWithNoInMemoryDocument() {
-        assertDoesNotThrow(() -> config.save("never_loaded"));
-        assertFalse(storage.has("never_loaded"));
+        assertTrue(storage.has("logistics"));
     }
 
     @Test
     void getReturnsStoredValueOverDefault() {
-        storage.seed("core", documentWith("core.speed_multiplier", new JsonPrimitive(3.0f)));
+        storage.seed("logistics", documentWith("core.speed_multiplier", new JsonPrimitive(3.0f)));
         config.load();
         assertEquals(3.0f, config.get(speed));
+    }
+
+    @Test
+    void topLevelKeyRoundTripsAsADirectKey() {
+        ConfigKey<Integer> maxCount =
+                config.define("max_count").asInt().defaultValue(5).register();
+        config.load();
+        config.set(maxCount, 12).save();
+
+        assertEquals(12, config.get(maxCount));
+        assertEquals(12, storage.load("logistics").get("max_count").getAsInt());
     }
 
     @Test
@@ -71,13 +75,13 @@ class ConfigCoreTest {
     void explicitJsonNullResolvesToDefaultAndIsRepairedOnLoad() {
         JsonObject doc = new JsonObject();
         JsonPaths.set(doc, ConfigPath.parse("core.speed_multiplier"), JsonNull.INSTANCE);
-        storage.seed("core", doc);
+        storage.seed("logistics", doc);
 
         assertEquals(1.0f, config.get(speed));
 
         config.load();
         assertEquals(1.0f, config.get(speed));
-        assertTrue(config.dirtyFiles().contains("core"), "the null was repaired to the default");
+        assertTrue(config.isDirty(), "the null was repaired to the default");
     }
 
     @Test
@@ -185,15 +189,15 @@ class ConfigCoreTest {
 
     @Test
     void invalidStoredValueIsRepairedToDefaultOnLoad() {
-        storage.seed("core", documentWith("core.speed_multiplier", new JsonPrimitive(99.0f)));
+        storage.seed("logistics", documentWith("core.speed_multiplier", new JsonPrimitive(99.0f)));
         config.load();
         assertEquals(1.0f, config.get(speed), "out-of-range stored value should reset to default");
-        assertTrue(config.dirtyFiles().contains("core"));
+        assertTrue(config.isDirty());
     }
 
     @Test
     void wrongTypeStoredValueIsRepairedToDefaultOnLoad() {
-        storage.seed("core", documentWith("core.speed_multiplier", new JsonPrimitive("not-a-number")));
+        storage.seed("logistics", documentWith("core.speed_multiplier", new JsonPrimitive("not-a-number")));
         config.load();
         assertEquals(1.0f, config.get(speed));
     }

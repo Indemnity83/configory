@@ -9,41 +9,24 @@ import org.junit.jupiter.api.Test;
 class ConfigPathTest {
 
     @Test
-    void parsesFileAndSegments() {
+    void everyDotIsANestingBoundary() {
         ConfigPath path = ConfigPath.parse("engines.stirling.max_output");
-        assertEquals("engines", path.file());
-        assertEquals(List.of("stirling", "max_output"), path.segments());
+        assertEquals(List.of("engines", "stirling", "max_output"), path.segments());
         assertEquals("engines.stirling.max_output", path.fullPath());
         assertEquals("engines.stirling.max_output", path.toString());
     }
 
     @Test
-    void parsesMinimalTwoSegmentPath() {
+    void parsesTwoSegmentPath() {
         ConfigPath path = ConfigPath.parse("core.speed");
-        assertEquals("core", path.file());
-        assertEquals(List.of("speed"), path.segments());
+        assertEquals(List.of("core", "speed"), path.segments());
     }
 
     @Test
-    void bareKeyUsesDefaultFile() {
+    void dotlessPathIsASingleTopLevelKey() {
         ConfigPath path = ConfigPath.parse("speed_multiplier");
-        assertEquals(ConfigPath.DEFAULT_FILE, path.file());
-        assertEquals("config", path.file());
         assertEquals(List.of("speed_multiplier"), path.segments());
-        // Bare keys still render in qualified form.
-        assertEquals("config.speed_multiplier", path.fullPath());
-    }
-
-    @Test
-    void explicitConfigPrefixEqualsBareKey() {
-        assertEquals(ConfigPath.parse("config.speed"), ConfigPath.parse("speed"));
-    }
-
-    @Test
-    void nestedKeysUnderDefaultFile() {
-        ConfigPath path = ConfigPath.parse("config.section.key");
-        assertEquals("config", path.file());
-        assertEquals(List.of("section", "key"), path.segments());
+        assertEquals("speed_multiplier", path.fullPath());
     }
 
     @Test
@@ -67,23 +50,18 @@ class ConfigPathTest {
     }
 
     @Test
-    void constructorRejectsBlankFile() {
-        assertThrows(ConfigException.class, () -> new ConfigPath("  ", List.of("key")));
-    }
-
-    @Test
     void constructorRejectsEmptySegments() {
-        assertThrows(ConfigException.class, () -> new ConfigPath("file", List.of()));
+        assertThrows(ConfigException.class, () -> new ConfigPath(List.of()));
     }
 
     @Test
     void constructorRejectsBlankSegment() {
-        assertThrows(ConfigException.class, () -> new ConfigPath("file", Arrays.asList("ok", "  ")));
+        assertThrows(ConfigException.class, () -> new ConfigPath(Arrays.asList("ok", "  ")));
     }
 
     @Test
     void constructorRejectsNullSegment() {
-        assertThrows(ConfigException.class, () -> new ConfigPath("file", Arrays.asList("ok", null)));
+        assertThrows(ConfigException.class, () -> new ConfigPath(Arrays.asList("ok", null)));
     }
 
     @Test
