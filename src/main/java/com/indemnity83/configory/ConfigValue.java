@@ -53,6 +53,21 @@ public final class ConfigValue {
     }
 
     /**
+     * {@return the stored value rendered as a display string, or an empty string when absent}
+     *
+     * <p>Type-agnostic: a boolean renders as {@code "true"}/{@code "false"}, a number as its text,
+     * and a string as itself — so commands and generated config screens can show the current value
+     * without switching on its type. Pair with {@link #isPresent()} to tell an absent value apart
+     * from an empty one.
+     */
+    public String asDisplayString() {
+        if (element == null || element.isJsonNull()) {
+            return "";
+        }
+        return element.isJsonPrimitive() ? element.getAsString() : element.toString();
+    }
+
+    /**
      * {@return the value as a boolean}
      *
      * @throws ConfigException if the value is missing or not a boolean
