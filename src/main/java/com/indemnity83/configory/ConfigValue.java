@@ -53,6 +53,21 @@ public final class ConfigValue {
     }
 
     /**
+     * {@return the stored value rendered as a display string, or an empty string when absent}
+     *
+     * <p>Type-agnostic: a boolean renders as {@code "true"}/{@code "false"}, a number as its text,
+     * and a string as itself — so commands and generated config screens can show the current value
+     * without switching on its type. Pair with {@link #isPresent()} to tell an absent value apart
+     * from an empty one.
+     */
+    public String asDisplayString() {
+        if (element == null || element.isJsonNull()) {
+            return "";
+        }
+        return element.isJsonPrimitive() ? element.getAsString() : element.toString();
+    }
+
+    /**
      * {@return the value as a boolean}
      *
      * @throws ConfigException if the value is missing or not a boolean
@@ -158,6 +173,36 @@ public final class ConfigValue {
      */
     public double asDouble(double fallback) {
         return readOrFallback(ConfigType.DOUBLE, fallback);
+    }
+
+    /**
+     * {@return the value as a constant of {@code enumClass}}
+     *
+     * @param enumClass the enum type
+     * @param <E> the enum type
+     * @throws ConfigException if the value is missing or not one of the enum's constant names
+     */
+    public <E extends Enum<E>> E asEnum(Class<E> enumClass) {
+        try {
+            return ConfigValues.fromJson(element, ConfigType.ENUM, enumClass);
+        } catch (ConfigException e) {
+            throw new ConfigException("Invalid config value at " + path.fullPath() + ": " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * {@return the value as a constant of {@code enumClass}, or {@code fallback} if coercion fails}
+     *
+     * @param enumClass the enum type
+     * @param fallback the value to return when the value is missing or not a valid constant name
+     * @param <E> the enum type
+     */
+    public <E extends Enum<E>> E asEnum(Class<E> enumClass, E fallback) {
+        try {
+            return ConfigValues.fromJson(element, ConfigType.ENUM, enumClass);
+        } catch (ConfigException ignored) {
+            return fallback;
+        }
     }
 
     private <T> T read(ConfigType type) {
