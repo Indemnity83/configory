@@ -1,7 +1,5 @@
 <!-- docs/_sidebar.md -->
 
-- [Home](/)
-
 - **Getting Started**
 
   - [Introduction](getting-started/introduction.md)
