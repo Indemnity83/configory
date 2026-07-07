@@ -4,8 +4,7 @@ package com.indemnity83.configory;
  * The result of a {@code set} call, describing what happened and offering a chained save.
  *
  * <p>Returned by {@link Config#set(String, Object)} / {@link Config#set(ConfigKey, Object)}. A
- * mutation only records an in-memory change; call {@link #save()} to write the single affected file
- * to disk.
+ * mutation only records an in-memory change; call {@link #save()} to persist the config to disk.
  */
 public final class ConfigMutation {
     private final Config config;
@@ -29,8 +28,8 @@ public final class ConfigMutation {
     /**
      * {@return whether the set actually changed the stored value}
      *
-     * <p>Returns {@code false} when the new value equalled the existing one, in which case no file was
-     * marked dirty.
+     * <p>Returns {@code false} when the new value equalled the existing one, in which case the config
+     * was not marked dirty.
      */
     public boolean changed() {
         return changed;
@@ -44,12 +43,12 @@ public final class ConfigMutation {
     }
 
     /**
-     * Saves the single file affected by this mutation to disk.
+     * Saves the config to disk.
      *
      * @return this mutation, for further chaining
      */
     public ConfigMutation save() {
-        config.save(path.file());
+        config.save();
         return this;
     }
 }

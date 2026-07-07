@@ -12,11 +12,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * The default {@link ConfigStorage}: stores each file as a pretty-printed {@code <file>.json} under a
- * root directory.
+ * The default {@link ConfigStorage}: stores each config as a pretty-printed {@code .json} file under a
+ * root directory, keyed by config id.
  *
- * <p>Files are resolved as {@code <rootDirectory>/<file>.json}. Loading a missing file yields an
- * empty document, and saving creates any missing parent directories. This is the storage
+ * <p>The {@code file} key is a config id whose dots become subdirectories: {@code "examplemod"}
+ * resolves to {@code <rootDirectory>/examplemod.json} and {@code "examplemod.engines"} to
+ * {@code <rootDirectory>/examplemod/engines.json}. Loading a missing file yields an empty document,
+ * and saving creates any missing parent directories. This is the storage
  * {@link com.indemnity83.configory.Config#create(String)} uses.
  */
 public final class JsonFileConfigStorage implements ConfigStorage {
@@ -75,6 +77,20 @@ public final class JsonFileConfigStorage implements ConfigStorage {
     }
 
     private Path pathFor(String file) {
-        return rootDirectory.resolve(file + ".json");
+        String[] segments = file.split("\\.", -1);
+        Path path = rootDirectory;
+        for (int i = 0; i < segments.length; i++) {
+            String segment = segments[i];
+            if (segment.isBlank()
+                    || segment.equals(".")
+                    || segment.equals("..")
+                    || segment.indexOf('/') >= 0
+                    || segment.indexOf('\\') >= 0) {
+                throw new ConfigException("Unsafe config file name: " + file);
+            }
+            boolean last = i == segments.length - 1;
+            path = path.resolve(last ? segment + ".json" : segment);
+        }
+        return path;
     }
 }

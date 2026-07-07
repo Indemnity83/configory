@@ -50,7 +50,7 @@ public final class ConfigKey<T> {
     }
 
     /**
-     * {@return a debug string of the form {@code <configId>:<file>.<segments>}}
+     * {@return a debug string of the form {@code <configId>:<segments>}}
      */
     @Override
     public String toString() {

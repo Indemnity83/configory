@@ -5,7 +5,7 @@ to disk. Nothing is persisted until you ask for it.
 
 ## Runtime-only mutation
 
-`set` updates the runtime value and marks the backing file dirty. It does **not** write to disk:
+`set` updates the runtime value and marks the config dirty. It does **not** write to disk:
 
 ```java
 setConfig(Configs.SPEED_MULTIPLIER, 3.0f);
@@ -16,7 +16,7 @@ flagged as having unsaved changes.
 
 ## Set and save
 
-Chain `.save()` on the result to persist just the file affected by that mutation:
+Chain `.save()` on the result to persist the config:
 
 ```java
 setConfig(Configs.SPEED_MULTIPLIER, 3.0f).save();
@@ -38,27 +38,15 @@ Or, going through the config instance directly:
 ConfigRegistry.config(MOD_ID).save();
 ```
 
-## Save one file
-
-To save a single named file explicitly:
-
-```java
-ConfigRegistry.config(MOD_ID).save("core");
-```
-
 ## Inspecting dirty state
 
-You can ask a config whether it has unsaved changes, and which files are affected:
+A config is a single file, so you can ask whether it has unsaved changes:
 
 ```java
 Config config = ConfigRegistry.config(MOD_ID);
 
-boolean pending = config.isDirty();
-Set<String> files = config.dirtyFiles();   // e.g. ["core", "engines"]
+boolean pending = config.isDirty();   // true until the next save()
 ```
-
-`dirtyFiles()` returns an immutable snapshot of the file names (first path segments, without the
-`.json` extension) that would be written by the next `save()`.
 
 ## Validation on write
 

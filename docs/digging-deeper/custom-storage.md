@@ -1,12 +1,12 @@
 # Custom Storage Backends
 
-By default a `Config` reads and writes JSON files under `config/<id>/` in the Minecraft config
-directory. That behavior lives behind the `ConfigStorage` interface, so you can swap in a
-different backend.
+By default a `Config` reads and writes a JSON file under `config/` in the Minecraft config
+directory, named by its id (`config/examplemod.json`; a dotted id nests into subdirectories). That
+behavior lives behind the `ConfigStorage` interface, so you can swap in a different backend.
 
 ## The `ConfigStorage` interface
 
-`ConfigStorage` is a small service-provider interface: it maps file names to JSON documents.
+`ConfigStorage` is a small service-provider interface: it maps a config id to its JSON document.
 
 ```java
 public interface ConfigStorage {
@@ -15,9 +15,10 @@ public interface ConfigStorage {
 }
 ```
 
-- `load(file)` returns the stored document for a file name (without the `.json` extension), or a
-  new empty `JsonObject` if it doesn't exist. It throws `ConfigException` if the file exists but
-  can't be read or parsed.
+- `load(file)` returns the stored document for a config id, or a new empty `JsonObject` if it
+  doesn't exist. It throws `ConfigException` if the file exists but can't be read or parsed. (The
+  parameter is named `file`, but it is the config id; `JsonFileConfigStorage` maps a dotted id to a
+  nested `.json` path.)
 - `save(file, root)` persists a document, replacing any prior contents; it throws
   `ConfigException` if the document can't be written.
 
@@ -58,6 +59,11 @@ private static final Config config = configFor("examplemod", storage);
 The storage is applied only when the config is **first** created for that id; a config already
 registered for the id is returned unchanged. Register the storage before anything else touches the
 id — for example in a test's setup, before the `Configs` holder class initializes.
+
+> [!NOTE]
+> Injected storage applies to that one config. Child configs declared with `configFor(modId, name)`
+> still use the default file store; to back a child with custom storage, create it directly with
+> `Config.create(id, storage)`.
 
 ## In-memory storage for tests
 

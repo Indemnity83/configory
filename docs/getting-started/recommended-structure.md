@@ -73,9 +73,35 @@ The two Stirling keys reference each other through `minValueOf` / `maxValueOf` s
 declaration order doesn't matter. The details are in
 [Cross-Value Validation](digging-deeper/cross-value-validation.md).
 
+All of the above lives in one file, `config/logistics.json` — the keys' dots just nest inside it.
+
+## Splitting into multiple files
+
+For a larger mod, declare extra configs for their own files. `configFor(MOD_ID, "<name>")` gives a
+config at `config/<modid>/<name>.json`, and `bootstrapConfig(MOD_ID)` loads the whole tree
+automatically — no extra call:
+
+```java
+public static final class Configs extends ConfigEntries {
+    private static final Config config  = configFor(MOD_ID);            // config/logistics.json
+    private static final Config engines = configFor(MOD_ID, "engines"); // config/logistics/engines.json
+
+    public static final ConfigKey<Float> SPEED_MULTIPLIER =
+            config.defineFloat("core.speed_multiplier", 1.0f).range(0.1f, 10.0f).register();
+
+    public static final ConfigKey<Double> STIRLING_MIN_OUTPUT =
+            engines.defineDouble("stirling.min_output", 3.0).min(0.0).register();
+
+    // A cross-field hook belongs to the config the keys live on:
+    public static void bootstrap(Config config) {
+        engines.registerSanitizeHook(() -> engines.repairMinMax(STIRLING_MIN_OUTPUT, STIRLING_MAX_OUTPUT));
+    }
+}
+```
+
 ## Next steps
 
 - [Configuration Paths](the-basics/configuration-paths.md) — how `core.speed_multiplier` becomes
-  a file and a JSON key.
+  a nested JSON key, and how the config id becomes the file.
 - [The Bootstrap Convention](digging-deeper/bootstrap-convention.md) — the full lifecycle of
   `bootstrapConfig(...)`.

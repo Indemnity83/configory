@@ -78,7 +78,7 @@ class ConfigValueTest {
         InMemoryConfigStorage storage = new InMemoryConfigStorage();
         JsonObject document = new JsonObject();
         JsonPaths.set(document, ConfigPath.parse("core.blank"), JsonNull.INSTANCE);
-        storage.seed("core", document);
+        storage.seed("host", document);
         Config withNull = Config.create("host", storage);
 
         assertFalse(withNull.get("core.blank").isPresent());

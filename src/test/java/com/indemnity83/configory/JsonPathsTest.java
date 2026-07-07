@@ -15,7 +15,7 @@ class JsonPathsTest {
         JsonPaths.set(root, path, new JsonPrimitive(10.0));
 
         assertEquals(10.0, JsonPaths.get(root, path).getAsDouble());
-        assertTrue(root.getAsJsonObject("stirling").has("max_output"));
+        assertTrue(root.getAsJsonObject("engines").getAsJsonObject("stirling").has("max_output"));
     }
 
     @Test
@@ -41,9 +41,9 @@ class JsonPathsTest {
     }
 
     @Test
-    void setShallowValueUsesFirstSegment() {
+    void setSingleSegmentValueAtTopLevel() {
         JsonObject root = new JsonObject();
-        ConfigPath path = ConfigPath.parse("file.key");
+        ConfigPath path = ConfigPath.parse("key");
         JsonPaths.set(root, path, new JsonPrimitive("v"));
         assertEquals("v", root.get("key").getAsString());
     }

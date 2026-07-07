@@ -11,17 +11,19 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Exercises the full consuming-mod flow through the registry and default file storage.
- * The registry resolves config files under {@code ./config/<modId>/}, so this test cleans
- * up that directory afterwards.
+ * The main config persists to {@code ./config/<modId>.json} and child configs to
+ * {@code ./config/<modId>/*.json}, so this test cleans up both afterwards.
  */
 class ConfigBootstrapIntegrationTest {
 
-    private final Path configDir = Path.of("config").resolve(BootstrapTestMod.MOD_ID);
+    private final Path mainFile = Path.of("config").resolve(BootstrapTestMod.MOD_ID + ".json");
+    private final Path childDir = Path.of("config").resolve(BootstrapTestMod.MOD_ID);
 
     @AfterEach
     void cleanUp() throws IOException {
-        if (Files.exists(configDir)) {
-            try (var paths = Files.walk(configDir)) {
+        Files.deleteIfExists(mainFile);
+        if (Files.exists(childDir)) {
+            try (var paths = Files.walk(childDir)) {
                 paths.sorted(Comparator.reverseOrder()).forEach(p -> {
                     try {
                         Files.deleteIfExists(p);
@@ -45,9 +47,16 @@ class ConfigBootstrapIntegrationTest {
         assertEquals(4, (int) mod.getConfig(BootstrapTestMod.Configs.COUNT));
         assertEquals(1.0f, mod.getConfig("core.speed").asFloat());
 
-        // Mutate + save persists a real file.
+        // The child config was auto-loaded by bootstrap (its defaults were applied, marking it dirty).
+        Config engines = mod.config(BootstrapTestMod.MOD_ID + ".engines");
+        assertTrue(engines.isDirty(), "bootstrap should have loaded the child config");
+        assertEquals(3.0, engines.get(BootstrapTestMod.Configs.STIRLING_MIN));
+
+        // Save persists the main file and the child under the mod's folder.
         mod.setConfig(BootstrapTestMod.Configs.SPEED, 3.0f).save();
-        assertTrue(Files.exists(configDir.resolve("core.json")));
+        engines.save();
+        assertTrue(Files.exists(mainFile));
+        assertTrue(Files.exists(childDir.resolve("engines.json")));
 
         // A reload reads the persisted value back.
         mod.reloadConfig();
