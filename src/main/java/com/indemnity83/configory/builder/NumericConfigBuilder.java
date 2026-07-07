@@ -67,6 +67,46 @@ public abstract class NumericConfigBuilder<T extends Number & Comparable<T>, SEL
     }
 
     /**
+     * Constrains the value to be strictly greater than {@code bound} (exclusive).
+     *
+     * @param bound the exclusive lower bound
+     * @return this builder
+     */
+    public SELF greaterThan(T bound) {
+        constraints.add((value, config) -> value.compareTo(bound) <= 0
+                ? ValidationResult.error("Value must be greater than " + bound + ".")
+                : ValidationResult.ok());
+        return self();
+    }
+
+    /**
+     * Constrains the value to be strictly less than {@code bound} (exclusive).
+     *
+     * @param bound the exclusive upper bound
+     * @return this builder
+     */
+    public SELF lessThan(T bound) {
+        constraints.add((value, config) -> value.compareTo(bound) >= 0
+                ? ValidationResult.error("Value must be less than " + bound + ".")
+                : ValidationResult.ok());
+        return self();
+    }
+
+    /**
+     * Constrains the value to be finite, rejecting {@code NaN} and infinities.
+     *
+     * <p>Only meaningful for {@code float}/{@code double}; integral types are always finite.
+     *
+     * @return this builder
+     */
+    public SELF finite() {
+        constraints.add((value, config) -> Double.isFinite(value.doubleValue())
+                ? ValidationResult.ok()
+                : ValidationResult.error("Value must be finite."));
+        return self();
+    }
+
+    /**
      * Constrains the value to be at least the current value of another key.
      *
      * <p>The referenced key is resolved lazily through the supplier at validation time, so it may be
