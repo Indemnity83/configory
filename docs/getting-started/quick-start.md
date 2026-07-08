@@ -68,13 +68,13 @@ float speed = ConfigRegistry.config(ExampleMod.MOD_ID)
 setConfig(Configs.SPEED_MULTIPLIER, 3.0f);
 ```
 
-Chain `.save()` to persist just the affected file:
+Chain `.save()` to persist the config:
 
 ```java
 setConfig(Configs.SPEED_MULTIPLIER, 3.0f).save();
 ```
 
-Or save every dirty file at once:
+Or save through the host helper:
 
 ```java
 saveConfig();

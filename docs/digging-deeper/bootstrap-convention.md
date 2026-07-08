@@ -33,8 +33,11 @@ A single call performs, in order:
    `configFor(modId, "<name>")` (each at `config/<modid>/<name>.json`): reading each file, applying
    defaults for missing keys, validating stored values (replacing invalid ones with defaults and
    marking the config dirty), and finally running any registered sanitize hooks.
+5. **Persist** any config that load left dirty — a brand-new file, or one repaired/topped-up with
+   freshly applied defaults — so a fresh install gets an editable file on disk with no manual save.
+   Configs that loaded cleanly (nothing missing or invalid) are left untouched.
 
-After it returns, every value is defined, loaded, validated, and ready to read.
+After it returns, every value is defined, loaded, validated, written to disk, and ready to read.
 
 ## Resolving the id automatically
 
