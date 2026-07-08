@@ -14,9 +14,16 @@ final class ConfigBootstrap {
         Class<?> entriesClass = findConfigEntriesClass(hostClass);
         forceInitialize(entriesClass);
         invokeOptionalBootstrap(entriesClass, config);
-        config.load();
+        loadAndPersistDefaults(config);
         for (Config child : ConfigRegistry.childConfigs(config.id())) {
-            child.load();
+            loadAndPersistDefaults(child);
+        }
+    }
+
+    private static void loadAndPersistDefaults(Config config) {
+        config.load();
+        if (config.isDirty()) {
+            config.save();
         }
     }
 
