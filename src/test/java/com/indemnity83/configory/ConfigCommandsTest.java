@@ -77,6 +77,21 @@ class ConfigCommandsTest {
     }
 
     @Test
+    void bareConfigIsExecutableWithGroupsOnly() throws CommandSyntaxException {
+        Config engines = Config.create("examplemod.engines", new InMemoryConfigStorage());
+        engines.defineDouble("stirling.min", 3.0).min(0.0).register();
+        engines.load();
+
+        dispatcher = new CommandDispatcher<>();
+        feedback.clear();
+        ConfigCommands.<Object>forRoot("examplemod", (src, msg) -> feedback.add(msg))
+                .group(engines) // groups only, no add()
+                .register(dispatcher);
+
+        assertEquals(0, run("examplemod config"), "bare config is executable and lists no native keys");
+    }
+
+    @Test
     void enumSetAcceptsAConstantAndRejectsUnknown() throws CommandSyntaxException {
         run("examplemod config core.mode AUTO");
         assertEquals(Mode.AUTO, config.get("core.mode").asEnum(Mode.class));

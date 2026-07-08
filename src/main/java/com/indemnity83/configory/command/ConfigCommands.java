@@ -194,18 +194,16 @@ public final class ConfigCommands {
          */
         public LiteralArgumentBuilder<S> configNode() {
             validateNoCollisions();
-            LiteralArgumentBuilder<S> configLit = LiteralArgumentBuilder.literal("config");
-            if (!nativeConfigs.isEmpty()) {
-                configLit.executes(ctx -> {
-                    int total = 0;
-                    for (Config config : nativeConfigs) {
-                        total += listKeys(ctx, config);
-                    }
-                    return total;
-                });
-                for (Config config : nativeConfigs) {
-                    addKeys(configLit, config);
-                }
+            LiteralArgumentBuilder<S> configLit = LiteralArgumentBuilder.<S>literal("config")
+                    .executes(ctx -> {
+                        int total = 0;
+                        for (Config config : nativeConfigs) {
+                            total += listKeys(ctx, config);
+                        }
+                        return total;
+                    });
+            for (Config config : nativeConfigs) {
+                addKeys(configLit, config);
             }
             for (Map.Entry<String, Config> entry : groups.entrySet()) {
                 configLit.then(keyedNode(entry.getKey(), entry.getValue()));
