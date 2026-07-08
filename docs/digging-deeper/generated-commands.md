@@ -55,20 +55,27 @@ That produces:
 Brigadier merges command trees that share a root literal, so `/<modid> config ...` coexists with any
 other `/<modid> ...` commands your mod registers (as long as none also claims a `config` child).
 
-### Placing the node yourself
+### Restricting who can change config
 
-For a permission wrapper or a different location, take the node instead of using the convenience:
+`register(...)` applies **no permission check**, so anyone who can run the command can `set` and
+`reload`. To gate mutation — usually to operators — attach a `.requires(...)` to the node and
+register it yourself instead of using the convenience (this also lets you place the node elsewhere):
 
 ```java
-dispatcher.register(literal(MOD_ID)
-        .requires(source -> hasPermission(source))
-        .then(ConfigCommands.configNode(config, feedback)));
+dispatcher.register(literal(MOD_ID).then(
+        ConfigCommands.configNode(config, feedback)
+                .requires(source -> source.hasPermissionLevel(2)))); // Fabric; NeoForge: source.hasPermission(2)
 ```
 
 ## Loader wiring
 
 The registration call lives in each loader's command event — the only loader-specific glue. The
-exact feedback signature varies by version; adapt the callback to yours:
+exact feedback signature varies by version; adapt the callback to yours.
+
+> [!WARNING]
+> These `register(...)` snippets add **no permission check** — `set` and `reload` mutate your
+> config. On a shared or public server, gate the commands as shown in
+> [Restricting who can change config](#restricting-who-can-change-config).
 
 **Fabric**
 ```java

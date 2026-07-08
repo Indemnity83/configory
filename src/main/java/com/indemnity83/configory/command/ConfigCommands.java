@@ -110,39 +110,31 @@ public final class ConfigCommands {
     private static <S> ArgumentBuilder<S, ?> valueArgument(
             Config config, ConfigDefinition<?> definition, CommandFeedback<S> feedback) {
         String path = definition.path().fullPath();
-        switch (definition.type()) {
-            case BOOLEAN -> {
-                return RequiredArgumentBuilder.<S, Boolean>argument(VALUE, BoolArgumentType.bool())
+        return switch (definition.type()) {
+            case BOOLEAN ->
+                RequiredArgumentBuilder.<S, Boolean>argument(VALUE, BoolArgumentType.bool())
                         .executes(ctx -> apply(ctx, config, feedback, path, BoolArgumentType.getBool(ctx, VALUE)));
-            }
-            case INT -> {
-                return RequiredArgumentBuilder.<S, Integer>argument(VALUE, IntegerArgumentType.integer())
+            case INT ->
+                RequiredArgumentBuilder.<S, Integer>argument(VALUE, IntegerArgumentType.integer())
                         .executes(
                                 ctx -> apply(ctx, config, feedback, path, IntegerArgumentType.getInteger(ctx, VALUE)));
-            }
-            case LONG -> {
-                return RequiredArgumentBuilder.<S, Long>argument(VALUE, LongArgumentType.longArg())
+            case LONG ->
+                RequiredArgumentBuilder.<S, Long>argument(VALUE, LongArgumentType.longArg())
                         .executes(ctx -> apply(ctx, config, feedback, path, LongArgumentType.getLong(ctx, VALUE)));
-            }
-            case FLOAT -> {
-                return RequiredArgumentBuilder.<S, Float>argument(VALUE, FloatArgumentType.floatArg())
+            case FLOAT ->
+                RequiredArgumentBuilder.<S, Float>argument(VALUE, FloatArgumentType.floatArg())
                         .executes(ctx -> apply(ctx, config, feedback, path, FloatArgumentType.getFloat(ctx, VALUE)));
-            }
-            case DOUBLE -> {
-                return RequiredArgumentBuilder.<S, Double>argument(VALUE, DoubleArgumentType.doubleArg())
+            case DOUBLE ->
+                RequiredArgumentBuilder.<S, Double>argument(VALUE, DoubleArgumentType.doubleArg())
                         .executes(ctx -> apply(ctx, config, feedback, path, DoubleArgumentType.getDouble(ctx, VALUE)));
-            }
-            case STRING -> {
-                return RequiredArgumentBuilder.<S, String>argument(VALUE, StringArgumentType.string())
+            case STRING ->
+                RequiredArgumentBuilder.<S, String>argument(VALUE, StringArgumentType.string())
                         .executes(ctx -> apply(ctx, config, feedback, path, StringArgumentType.getString(ctx, VALUE)));
-            }
-            case ENUM -> {
-                return RequiredArgumentBuilder.<S, String>argument(VALUE, StringArgumentType.string())
+            case ENUM ->
+                RequiredArgumentBuilder.<S, String>argument(VALUE, StringArgumentType.string())
                         .suggests(enumSuggestions(definition))
                         .executes(ctx -> applyEnum(ctx, config, feedback, definition));
-            }
-        }
-        throw new IllegalStateException("Unsupported config type: " + definition.type());
+        };
     }
 
     private static <S> LiteralArgumentBuilder<S> reloadNode(Config config, CommandFeedback<S> feedback) {

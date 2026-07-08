@@ -2,6 +2,8 @@ package com.indemnity83.configory;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import com.indemnity83.configory.command.ConfigCommands;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -20,13 +22,15 @@ class ConfigCommandsTest {
     }
 
     private final Object source = new Object();
+    private InMemoryConfigStorage storage;
     private Config config;
     private CommandDispatcher<Object> dispatcher;
     private List<String> feedback;
 
     @BeforeEach
     void setUp() {
-        config = Config.create("examplemod", new InMemoryConfigStorage());
+        storage = new InMemoryConfigStorage();
+        config = Config.create("examplemod", storage);
         config.defineDouble("engines.max", 10.0).min(0.0).register();
         config.defineInt("core.count", 4).min(0).register();
         config.defineEnum("core.mode", Mode.OFF).register();
@@ -82,15 +86,23 @@ class ConfigCommandsTest {
     }
 
     @Test
-    void unexposedKeyHasNoSetCommand() {
+    void hiddenKeyHasNoSetOrGetCommand() {
         assertThrows(CommandSyntaxException.class, () -> run("examplemod config set core.secret x"));
+        assertThrows(CommandSyntaxException.class, () -> run("examplemod config get core.secret"));
     }
 
     @Test
-    void reloadReportsSuccess() throws CommandSyntaxException {
-        config.set("engines.max", 7.0).save();
+    void reloadRefreshesFromDisk() throws CommandSyntaxException {
+        config.save(); // clear the dirty state from applied defaults so reload() is allowed
+
+        // change the backing source out from under the config, then reload through the command
+        JsonObject external = new JsonObject();
+        JsonPaths.set(external, ConfigPath.parse("engines.max"), new JsonPrimitive(6.0));
+        storage.seed("examplemod", external);
 
         run("examplemod config reload");
+
+        assertEquals(6.0, config.get("engines.max").asDouble(), "reload picked up the external change");
         assertTrue(feedback.stream().anyMatch(m -> m.contains("Reloaded")));
     }
 
