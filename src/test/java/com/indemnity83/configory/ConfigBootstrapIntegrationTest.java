@@ -47,18 +47,18 @@ class ConfigBootstrapIntegrationTest {
         assertEquals(4, (int) mod.getConfig(BootstrapTestMod.Configs.COUNT));
         assertEquals(1.0f, mod.getConfig("core.speed").asFloat());
 
-        // The child config was auto-loaded by bootstrap (its defaults were applied, marking it dirty).
+        // A fresh install gets editable files with no manual save: bootstrap persisted the applied
+        // defaults for the main config and the auto-loaded child.
+        assertTrue(Files.exists(mainFile), "bootstrap should write the main config file");
+        assertTrue(Files.exists(childDir.resolve("engines.json")), "bootstrap should write the child config file");
+        assertFalse(mod.config(BootstrapTestMod.MOD_ID).isDirty(), "persisted defaults leave nothing pending");
+
         Config engines = mod.config(BootstrapTestMod.MOD_ID + ".engines");
-        assertTrue(engines.isDirty(), "bootstrap should have loaded the child config");
+        assertFalse(engines.isDirty());
         assertEquals(3.0, engines.get(BootstrapTestMod.Configs.STIRLING_MIN));
 
-        // Save persists the main file and the child under the mod's folder.
+        // Mutate + save + reload round-trips the value on disk.
         mod.setConfig(BootstrapTestMod.Configs.SPEED, 3.0f).save();
-        engines.save();
-        assertTrue(Files.exists(mainFile));
-        assertTrue(Files.exists(childDir.resolve("engines.json")));
-
-        // A reload reads the persisted value back.
         mod.reloadConfig();
         assertEquals(3.0f, mod.getConfig(BootstrapTestMod.Configs.SPEED));
     }
