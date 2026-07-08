@@ -26,6 +26,7 @@
   - [Seeding from a Legacy File](digging-deeper/seeding-from-legacy.md)
   - [Error Handling](digging-deeper/error-handling.md)
   - [Generated Files](digging-deeper/generated-files.md)
+  - [Multiloader Integration](digging-deeper/multiloader-integration.md)
 
 - **Reference**
 
