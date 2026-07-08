@@ -15,4 +15,4 @@ authors="Kyle Klaus (@indemnity83)"
 [[dependencies.configory]]
 modId="minecraft"
 type="required"
-versionRange="[1.20.2,)"
+versionRange="[1.13,)"
