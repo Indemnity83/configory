@@ -15,10 +15,23 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
 
 /**
- * Builds a Brigadier command surface for a config's {@linkplain Config#exposedDefinitions() exposed}
- * keys: {@code list}, {@code get <key>}, {@code set <key> <value>}, and {@code reload}.
+ * Builds a {@code /gamerule}-style Brigadier command surface for a config's
+ * {@linkplain Config#exposedDefinitions() exposed} keys:
+ *
+ * <pre>
+ * /&lt;root&gt; config                       list the main config's keys + values
+ * /&lt;root&gt; config &lt;key&gt;                 show a value (get)
+ * /&lt;root&gt; config &lt;key&gt; &lt;value&gt;         set it (parsed + validated)
+ * /&lt;root&gt; config &lt;group&gt; &lt;key&gt; [value]  the same, nested per extra config file
+ * /&lt;root&gt; reload-configs               reload every config
+ * </pre>
  *
  * <p>This is the one part of Configory that touches Brigadier; the core stays free of it. It is
  * generic over the command source type {@code S} and never calls a Minecraft API — value parsing is
@@ -27,11 +40,15 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
  * type, a feedback callback, and the registration into their loader's command event.
  *
  * <pre>{@code
- * // convenience: /examplemod config list|get|set|reload  (merges with your other /examplemod commands)
+ * // single config:
  * ConfigCommands.register(dispatcher, MOD_ID, config, (src, msg) -> src.sendMessage(msg));
  *
- * // or take the node and place it yourself (add .requires(...), nest under an existing root, ...)
- * dispatcher.register(literal(MOD_ID).then(ConfigCommands.configNode(config, feedback)));
+ * // main config + extra files as nested groups, optionally permission-gated:
+ * ConfigCommands.forRoot(MOD_ID, feedback)
+ *         .add(config)                    // keys native under /<root> config
+ *         .group("engines", enginesConfig) // /<root> config engines <key> ...
+ *         .requires(src -> src.hasPermissionLevel(2))
+ *         .register(dispatcher);
  * }</pre>
  */
 public final class ConfigCommands {
@@ -40,10 +57,9 @@ public final class ConfigCommands {
     private ConfigCommands() {}
 
     /**
-     * Registers {@code <root> config …} into the dispatcher for the config's exposed keys.
+     * Registers {@code /<root> config …} + {@code /<root> reload-configs} for a single config.
      *
-     * <p>Brigadier merges command trees that share a root literal, so this coexists with any other
-     * {@code <root> …} commands the mod registers, as long as none also claims a {@code config} child.
+     * <p>Shorthand for {@code forRoot(root, feedback).add(config).register(dispatcher)}.
      *
      * @param dispatcher the command dispatcher to register into
      * @param root the root literal (typically the mod id)
@@ -53,128 +69,235 @@ public final class ConfigCommands {
      */
     public static <S> void register(
             CommandDispatcher<S> dispatcher, String root, Config config, CommandFeedback<S> feedback) {
-        dispatcher.register(LiteralArgumentBuilder.<S>literal(root).then(configNode(config, feedback)));
+        forRoot(root, feedback).add(config).register(dispatcher);
     }
 
     /**
-     * {@return a {@code config} command node with {@code list}/{@code get}/{@code set}/{@code reload}
-     * for the config's exposed keys}
+     * {@return a builder for a config command surface rooted at {@code root}}
      *
-     * <p>Attach it wherever you like — under your mod's root, standalone, or with a
-     * {@code .requires(...)} permission wrapper — then register it with your dispatcher.
-     *
-     * @param config the config whose exposed keys drive the commands
+     * @param root the root literal (typically the mod id)
      * @param feedback delivers result messages to the command source
      * @param <S> the command source type
      */
-    public static <S> LiteralArgumentBuilder<S> configNode(Config config, CommandFeedback<S> feedback) {
-        return LiteralArgumentBuilder.<S>literal("config")
-                .then(listNode(config, feedback))
-                .then(getNode(config, feedback))
-                .then(setNode(config, feedback))
-                .then(reloadNode(config, feedback));
+    public static <S> Builder<S> forRoot(String root, CommandFeedback<S> feedback) {
+        return new Builder<>(root, feedback);
     }
 
-    private static <S> LiteralArgumentBuilder<S> listNode(Config config, CommandFeedback<S> feedback) {
-        return LiteralArgumentBuilder.<S>literal("list").executes(ctx -> {
+    /**
+     * Fluent builder for a config command surface: one or more {@link #add(Config) native} configs
+     * plus any number of nested {@link #group(String, Config) groups}, with an optional
+     * {@link #requires(Predicate) permission gate}.
+     *
+     * @param <S> the command source type
+     */
+    public static final class Builder<S> {
+        private final String root;
+        private final CommandFeedback<S> feedback;
+        private final Map<String, Config> groups = new LinkedHashMap<>();
+        private final List<Config> nativeConfigs = new ArrayList<>();
+        private Predicate<S> requirement;
+
+        private Builder(String root, CommandFeedback<S> feedback) {
+            this.root = root;
+            this.feedback = feedback;
+        }
+
+        /**
+         * Adds a config whose keys appear natively under {@code /<root> config}. Call it more than
+         * once to flatten several files together at that level.
+         *
+         * @param config a config whose keys go directly under {@code config}
+         * @return this builder
+         */
+        public Builder<S> add(Config config) {
+            nativeConfigs.add(config);
+            return this;
+        }
+
+        /**
+         * Adds a config as a group nested under {@code /<root> config <name> …}.
+         *
+         * @param name the group literal
+         * @param config the config for this group
+         * @return this builder
+         */
+        public Builder<S> group(String name, Config config) {
+            groups.put(name, config);
+            return this;
+        }
+
+        /**
+         * Adds a config as a group named by the last dot-segment of its {@linkplain Config#id() id}
+         * (so {@code "examplemod.engines"} groups under {@code engines}).
+         *
+         * @param config the config for this group
+         * @return this builder
+         */
+        public Builder<S> group(Config config) {
+            return group(lastSegment(config.id()), config);
+        }
+
+        /**
+         * Restricts the generated {@code config} and {@code reload-configs} commands to sources that
+         * satisfy {@code permission} (typically operators). The requirement is applied to those nodes,
+         * not the root literal, so the tree still merges with the mod's other {@code /<root> …}
+         * commands.
+         *
+         * @param permission the source predicate to require
+         * @return this builder
+         */
+        public Builder<S> requires(Predicate<S> permission) {
+            this.requirement = permission;
+            return this;
+        }
+
+        /**
+         * {@return the root command node with the {@code config} and {@code reload-configs} subtrees}
+         *
+         * <p>Register it yourself, or nest it, or use {@link #register(CommandDispatcher)}.
+         */
+        public LiteralArgumentBuilder<S> build() {
+            LiteralArgumentBuilder<S> configLit = LiteralArgumentBuilder.literal("config");
+            if (!nativeConfigs.isEmpty()) {
+                configLit.executes(ctx -> {
+                    int total = 0;
+                    for (Config config : nativeConfigs) {
+                        total += listKeys(ctx, config);
+                    }
+                    return total;
+                });
+                for (Config config : nativeConfigs) {
+                    addKeys(configLit, config);
+                }
+            }
+            for (Map.Entry<String, Config> entry : groups.entrySet()) {
+                configLit.then(keyedNode(entry.getKey(), entry.getValue()));
+            }
+            LiteralArgumentBuilder<S> reload = reloadConfigsNode();
+            if (requirement != null) {
+                configLit.requires(requirement);
+                reload.requires(requirement);
+            }
+            return LiteralArgumentBuilder.<S>literal(root).then(configLit).then(reload);
+        }
+
+        /**
+         * Builds and registers the command surface into {@code dispatcher}.
+         *
+         * @param dispatcher the command dispatcher to register into
+         */
+        public void register(CommandDispatcher<S> dispatcher) {
+            dispatcher.register(build());
+        }
+
+        private LiteralArgumentBuilder<S> keyedNode(String label, Config config) {
+            LiteralArgumentBuilder<S> node =
+                    LiteralArgumentBuilder.<S>literal(label).executes(ctx -> listKeys(ctx, config));
+            addKeys(node, config);
+            return node;
+        }
+
+        private void addKeys(LiteralArgumentBuilder<S> node, Config config) {
+            for (ConfigDefinition<?> definition : config.exposedDefinitions()) {
+                node.then(LiteralArgumentBuilder.<S>literal(definition.path().fullPath())
+                        .executes(ctx -> {
+                            feedback.send(ctx.getSource(), line(config, definition));
+                            return 1;
+                        })
+                        .then(valueArgument(config, definition)));
+            }
+        }
+
+        private LiteralArgumentBuilder<S> reloadConfigsNode() {
+            return LiteralArgumentBuilder.<S>literal("reload-configs").executes(ctx -> {
+                int reloaded = 0;
+                for (Config config : allConfigs()) {
+                    try {
+                        config.reload();
+                        feedback.send(ctx.getSource(), "Reloaded config '" + config.id() + "'.");
+                        reloaded++;
+                    } catch (ConfigException e) {
+                        feedback.send(ctx.getSource(), "Cannot reload config '" + config.id() + "': " + e.getMessage());
+                    }
+                }
+                return reloaded;
+            });
+        }
+
+        private List<Config> allConfigs() {
+            List<Config> all = new ArrayList<>(nativeConfigs);
+            all.addAll(groups.values());
+            return all;
+        }
+
+        private int listKeys(CommandContext<S> ctx, Config config) {
             int count = 0;
             for (ConfigDefinition<?> definition : config.exposedDefinitions()) {
                 feedback.send(ctx.getSource(), line(config, definition));
                 count++;
             }
             return count;
-        });
-    }
-
-    private static <S> LiteralArgumentBuilder<S> getNode(Config config, CommandFeedback<S> feedback) {
-        LiteralArgumentBuilder<S> get = LiteralArgumentBuilder.literal("get");
-        for (ConfigDefinition<?> definition : config.exposedDefinitions()) {
-            get.then(LiteralArgumentBuilder.<S>literal(definition.path().fullPath())
-                    .executes(ctx -> {
-                        feedback.send(ctx.getSource(), line(config, definition));
-                        return 1;
-                    }));
         }
-        return get;
-    }
 
-    private static <S> LiteralArgumentBuilder<S> setNode(Config config, CommandFeedback<S> feedback) {
-        LiteralArgumentBuilder<S> set = LiteralArgumentBuilder.literal("set");
-        for (ConfigDefinition<?> definition : config.exposedDefinitions()) {
-            set.then(LiteralArgumentBuilder.<S>literal(definition.path().fullPath())
-                    .then(valueArgument(config, definition, feedback)));
+        private ArgumentBuilder<S, ?> valueArgument(Config config, ConfigDefinition<?> definition) {
+            String path = definition.path().fullPath();
+            return switch (definition.type()) {
+                case BOOLEAN ->
+                    RequiredArgumentBuilder.<S, Boolean>argument(VALUE, BoolArgumentType.bool())
+                            .executes(ctx -> apply(ctx, config, path, BoolArgumentType.getBool(ctx, VALUE)));
+                case INT ->
+                    RequiredArgumentBuilder.<S, Integer>argument(VALUE, IntegerArgumentType.integer())
+                            .executes(ctx -> apply(ctx, config, path, IntegerArgumentType.getInteger(ctx, VALUE)));
+                case LONG ->
+                    RequiredArgumentBuilder.<S, Long>argument(VALUE, LongArgumentType.longArg())
+                            .executes(ctx -> apply(ctx, config, path, LongArgumentType.getLong(ctx, VALUE)));
+                case FLOAT ->
+                    RequiredArgumentBuilder.<S, Float>argument(VALUE, FloatArgumentType.floatArg())
+                            .executes(ctx -> apply(ctx, config, path, FloatArgumentType.getFloat(ctx, VALUE)));
+                case DOUBLE ->
+                    RequiredArgumentBuilder.<S, Double>argument(VALUE, DoubleArgumentType.doubleArg())
+                            .executes(ctx -> apply(ctx, config, path, DoubleArgumentType.getDouble(ctx, VALUE)));
+                case STRING ->
+                    RequiredArgumentBuilder.<S, String>argument(VALUE, StringArgumentType.string())
+                            .executes(ctx -> apply(ctx, config, path, StringArgumentType.getString(ctx, VALUE)));
+                case ENUM ->
+                    RequiredArgumentBuilder.<S, String>argument(VALUE, StringArgumentType.string())
+                            .suggests(enumSuggestions(definition))
+                            .executes(ctx -> applyEnum(ctx, config, definition));
+            };
         }
-        return set;
-    }
 
-    private static <S> ArgumentBuilder<S, ?> valueArgument(
-            Config config, ConfigDefinition<?> definition, CommandFeedback<S> feedback) {
-        String path = definition.path().fullPath();
-        return switch (definition.type()) {
-            case BOOLEAN ->
-                RequiredArgumentBuilder.<S, Boolean>argument(VALUE, BoolArgumentType.bool())
-                        .executes(ctx -> apply(ctx, config, feedback, path, BoolArgumentType.getBool(ctx, VALUE)));
-            case INT ->
-                RequiredArgumentBuilder.<S, Integer>argument(VALUE, IntegerArgumentType.integer())
-                        .executes(
-                                ctx -> apply(ctx, config, feedback, path, IntegerArgumentType.getInteger(ctx, VALUE)));
-            case LONG ->
-                RequiredArgumentBuilder.<S, Long>argument(VALUE, LongArgumentType.longArg())
-                        .executes(ctx -> apply(ctx, config, feedback, path, LongArgumentType.getLong(ctx, VALUE)));
-            case FLOAT ->
-                RequiredArgumentBuilder.<S, Float>argument(VALUE, FloatArgumentType.floatArg())
-                        .executes(ctx -> apply(ctx, config, feedback, path, FloatArgumentType.getFloat(ctx, VALUE)));
-            case DOUBLE ->
-                RequiredArgumentBuilder.<S, Double>argument(VALUE, DoubleArgumentType.doubleArg())
-                        .executes(ctx -> apply(ctx, config, feedback, path, DoubleArgumentType.getDouble(ctx, VALUE)));
-            case STRING ->
-                RequiredArgumentBuilder.<S, String>argument(VALUE, StringArgumentType.string())
-                        .executes(ctx -> apply(ctx, config, feedback, path, StringArgumentType.getString(ctx, VALUE)));
-            case ENUM ->
-                RequiredArgumentBuilder.<S, String>argument(VALUE, StringArgumentType.string())
-                        .suggests(enumSuggestions(definition))
-                        .executes(ctx -> applyEnum(ctx, config, feedback, definition));
-        };
-    }
-
-    private static <S> LiteralArgumentBuilder<S> reloadNode(Config config, CommandFeedback<S> feedback) {
-        return LiteralArgumentBuilder.<S>literal("reload").executes(ctx -> {
-            try {
-                config.reload();
-                feedback.send(ctx.getSource(), "Reloaded config '" + config.id() + "'.");
+        private int apply(CommandContext<S> ctx, Config config, String path, Object value) {
+            if (config.trySet(path, value)) {
+                config.save();
+                feedback.send(ctx.getSource(), path + " = " + config.get(path).asDisplayString());
                 return 1;
-            } catch (ConfigException e) {
-                feedback.send(ctx.getSource(), "Cannot reload config '" + config.id() + "': " + e.getMessage());
-                return 0;
             }
-        });
-    }
-
-    private static <S> int apply(
-            CommandContext<S> ctx, Config config, CommandFeedback<S> feedback, String path, Object value) {
-        if (config.trySet(path, value)) {
-            config.save();
-            feedback.send(ctx.getSource(), path + " = " + config.get(path).asDisplayString());
-            return 1;
-        }
-        feedback.send(ctx.getSource(), "Rejected value for " + path + ": " + value);
-        return 0;
-    }
-
-    private static <S, E extends Enum<E>> int applyEnum(
-            CommandContext<S> ctx, Config config, CommandFeedback<S> feedback, ConfigDefinition<?> definition) {
-        String raw = StringArgumentType.getString(ctx, VALUE);
-        @SuppressWarnings("unchecked")
-        Class<E> enumClass = (Class<E>) definition.valueClass();
-        E value;
-        try {
-            value = Enum.valueOf(enumClass, raw);
-        } catch (IllegalArgumentException e) {
-            feedback.send(
-                    ctx.getSource(), "Rejected value for " + definition.path().fullPath() + ": " + raw);
+            feedback.send(ctx.getSource(), "Rejected value for " + path + ": " + value);
             return 0;
         }
-        return apply(ctx, config, feedback, definition.path().fullPath(), value);
+
+        private <E extends Enum<E>> int applyEnum(
+                CommandContext<S> ctx, Config config, ConfigDefinition<?> definition) {
+            String raw = StringArgumentType.getString(ctx, VALUE);
+            @SuppressWarnings("unchecked")
+            Class<E> enumClass = (Class<E>) definition.valueClass();
+            E value;
+            try {
+                value = Enum.valueOf(enumClass, raw);
+            } catch (IllegalArgumentException e) {
+                feedback.send(
+                        ctx.getSource(),
+                        "Rejected value for " + definition.path().fullPath() + ": " + raw);
+                return 0;
+            }
+            return apply(ctx, config, definition.path().fullPath(), value);
+        }
+
+        private String line(Config config, ConfigDefinition<?> definition) {
+            String path = definition.path().fullPath();
+            return path + " = " + config.get(path).asDisplayString();
+        }
     }
 
     private static <S> SuggestionProvider<S> enumSuggestions(ConfigDefinition<?> definition) {
@@ -186,8 +309,8 @@ public final class ConfigCommands {
         };
     }
 
-    private static String line(Config config, ConfigDefinition<?> definition) {
-        String path = definition.path().fullPath();
-        return path + " = " + config.get(path).asDisplayString();
+    private static String lastSegment(String id) {
+        int dot = id.lastIndexOf('.');
+        return dot < 0 ? id : id.substring(dot + 1);
     }
 }
