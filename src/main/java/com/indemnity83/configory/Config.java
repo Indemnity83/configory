@@ -451,12 +451,16 @@ public final class Config {
      * <p>After reading, this applies defaults for any missing keys, replaces values that are invalid
      * or of the wrong type with their defaults (marking the config dirty so the repaired values can
      * be saved back), and finally runs any registered sanitize hooks.
+     *
+     * @return this config, for chaining — e.g. {@code config.load().save()} to persist any defaults
+     *     applied for a fresh install ({@link #save()} is a no-op when nothing changed)
      */
-    public void load() {
+    public Config load() {
         document = storage.load(id);
         dirty = false;
         applyDefaultsAndValidate();
         runSanitizeHooks();
+        return this;
     }
 
     /**
