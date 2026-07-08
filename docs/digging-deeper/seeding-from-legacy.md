@@ -3,9 +3,9 @@
 When a mod moves onto Configory from an older config system, you usually want to carry the user's
 existing settings over on first run instead of resetting everything to defaults.
 
-The pattern is: after bootstrap, read the legacy file **once**, push its values in with
-[`trySet`](the-basics/writing-and-saving.md), `save()`, and then retire the legacy file so the
-migration never runs again.
+The pattern is: after bootstrap, read the legacy file **once**, parse each value and push it in with
+[`trySet`](the-basics/writing-and-saving.md) — both steps guard against bad data, so nothing throws —
+then `save()` and retire the legacy file so the migration never runs again.
 
 ## Recipe
 
@@ -31,13 +31,13 @@ public final class ExampleMod implements ConfigHost {
             throw new UncheckedIOException(e);
         }
 
-        // Map each legacy key onto a Configory path. trySet validates and skips values that don't fit.
-        if (legacy.containsKey("speed")) {
-            config.trySet("core.speed_multiplier", Float.parseFloat(legacy.getProperty("speed")));
-        }
-        if (legacy.containsKey("stirling_min")) {
-            config.trySet("engines.stirling.min_output", Double.parseDouble(legacy.getProperty("stirling_min")));
-        }
+        // trySet takes an already-typed value, so parse the legacy strings defensively first: a
+        // malformed entry is skipped here instead of throwing. trySet then skips any parsed value
+        // that fails the definition's type/range checks.
+        parseFloat(legacy.getProperty("speed"))
+                .ifPresent(v -> config.trySet("core.speed_multiplier", v));
+        parseDouble(legacy.getProperty("stirling_min"))
+                .ifPresent(v -> config.trySet("engines.stirling.min_output", v));
 
         config.save();
 
@@ -47,16 +47,38 @@ public final class ExampleMod implements ConfigHost {
             throw new UncheckedIOException(e);
         }
     }
+
+    private static Optional<Float> parseFloat(String raw) {
+        try {
+            return raw == null ? Optional.empty() : Optional.of(Float.parseFloat(raw.trim()));
+        } catch (NumberFormatException e) {
+            return Optional.empty(); // malformed legacy value — skip it
+        }
+    }
+
+    private static Optional<Double> parseDouble(String raw) {
+        try {
+            return raw == null ? Optional.empty() : Optional.of(Double.parseDouble(raw.trim()));
+        } catch (NumberFormatException e) {
+            return Optional.empty();
+        }
+    }
 }
 ```
 
 ## Why `trySet`
 
-`trySet(path, value)` coerces and validates against whatever definition is registered at that path,
-writing only when the value fits and returning `false` otherwise (see
-[Writing &amp; Saving](the-basics/writing-and-saving.md)). That makes it the safe choice for untrusted
-legacy data: an out-of-range or wrong-typed legacy value is skipped — leaving the Configory default
-in place — rather than throwing and aborting the whole migration.
+`trySet(path, value)` takes an **already-typed** value (a `Float`, `Double`, `Boolean`, ...), checks
+it against whatever definition is registered at that path, and writes only when it fits — returning
+`false` otherwise (see [Writing &amp; Saving](the-basics/writing-and-saving.md)). It does **not** parse
+strings: pass `"3.5"` to a float key and it is rejected, because a string isn't a float.
+
+That splits legacy migration into two guarded steps, neither of which throws:
+
+1. **Parse** each legacy string to its target type yourself, catching `NumberFormatException` so a
+   malformed entry (`speed=fast`) is skipped — the `parseFloat`/`parseDouble` helpers above do this.
+2. **`trySet`** the parsed value, which skips anything out of range or of the wrong type, leaving the
+   Configory default in place.
 
 ## Notes
 
