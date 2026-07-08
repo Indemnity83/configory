@@ -180,6 +180,22 @@ class ConfigCommandsTest {
     }
 
     @Test
+    void reloadConfigsReloadsAConfigOnceWhenBothNativeAndGrouped() throws CommandSyntaxException {
+        dispatcher = new CommandDispatcher<>();
+        feedback.clear();
+        ConfigCommands.<Object>forRoot("examplemod", (src, msg) -> feedback.add(msg))
+                .add(config)
+                .group("dup", config) // same instance, both native and grouped
+                .register(dispatcher);
+
+        config.save(); // not dirty, so reload() is allowed
+        run("examplemod reload-configs");
+
+        long reloads = feedback.stream().filter(m -> m.contains("Reloaded")).count();
+        assertEquals(1, reloads, "a config registered natively and as a group reloads once");
+    }
+
+    @Test
     void groupsAreSeparateNamespacesSoKeysCanBeReused() throws CommandSyntaxException {
         Config engines = Config.create("examplemod.engines", new InMemoryConfigStorage());
         engines.defineInt("limit", 5).min(0).register();

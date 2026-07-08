@@ -120,7 +120,6 @@ public final class ConfigCommands {
         private final String root;
         private final CommandFeedback<S> feedback;
         private final Map<String, Config> groups = new LinkedHashMap<>();
-        // Identity-deduped so add(config) on the same instance twice is a no-op, not a "duplicate key" throw.
         private final Set<Config> nativeConfigs = new LinkedHashSet<>();
         private Predicate<S> requirement;
 
@@ -151,8 +150,6 @@ public final class ConfigCommands {
          * @throws ConfigException if {@code name} is already used by another group
          */
         public Builder<S> group(String name, Config config) {
-            // Eager: groups is a map, so a second put(name, …) would silently overwrite. That would
-            // also hide the collision from validateNoCollisions(), which only sees the collapsed map.
             if (groups.containsKey(name)) {
                 throw new ConfigException("Duplicate config command group '" + name + "'.");
             }
@@ -322,9 +319,9 @@ public final class ConfigCommands {
         }
 
         private List<Config> allConfigs() {
-            List<Config> all = new ArrayList<>(nativeConfigs);
+            Set<Config> all = new LinkedHashSet<>(nativeConfigs);
             all.addAll(groups.values());
-            return all;
+            return new ArrayList<>(all);
         }
 
         private int listKeys(CommandContext<S> ctx, Config config) {
