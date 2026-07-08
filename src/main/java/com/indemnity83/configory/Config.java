@@ -567,6 +567,17 @@ public final class Config {
         return Collections.unmodifiableCollection(definitions.values());
     }
 
+    /**
+     * {@return the definitions included in the generated command surface — all registered ones except
+     * those marked {@code hidden()} — in registration order}
+     *
+     * <p>The command builder uses this to decide which keys appear in the generated
+     * {@code list}/{@code get}/{@code set} surface.
+     */
+    public Collection<ConfigDefinition<?>> exposedDefinitions() {
+        return definitions.values().stream().filter(ConfigDefinition::isExposed).toList();
+    }
+
     private ConfigMutation setRaw(ConfigPath path, Object value) {
         JsonObject document = documentOrLoad();
         JsonElement previous = JsonPaths.get(document, path);

@@ -18,6 +18,7 @@ publishing {
 
 repositories {
     mavenCentral()
+    maven { url 'https://libraries.minecraft.net' }
 }
 
 java {
@@ -29,6 +30,11 @@ java {
 
 dependencies {
     api 'com.google.code.gson:gson:2.14.0'
+
+    // Brigadier is provided by Minecraft at runtime; the optional command builder compiles against it
+    // but it is never bundled and consumers do not inherit it transitively.
+    compileOnly 'com.mojang:brigadier:1.2.9'
+    testImplementation 'com.mojang:brigadier:1.2.9'
 
     testImplementation platform('org.junit:junit-bom:6.1.1')
     testImplementation 'org.junit.jupiter:junit-jupiter'

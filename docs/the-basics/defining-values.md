@@ -115,6 +115,7 @@ public static final ConfigKey<String> ENERGY_UNIT =
 | `allowedValues(...)` | string | restrict to an enumeration |
 | `describe(text)` | all types | human-readable description for tooling |
 | `validator(...)` | all types | custom validation rule |
+| `hidden()` | all types | exclude the key from the [generated command surface](digging-deeper/generated-commands.md) (keys are included by default) |
 | `register()` | all types | build, register, and return the `ConfigKey<T>` |
 
 Bounds and custom rules are covered in [Validation](digging-deeper/validation.md); the
