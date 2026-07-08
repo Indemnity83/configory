@@ -11,5 +11,8 @@
     "sources": "https://github.com/Indemnity83/configory"
   },
   "license": "MIT",
-  "environment": "*"
+  "environment": "*",
+  "depends": {
+    "minecraft": ">=1.14"
+  }
 }
