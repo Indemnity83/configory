@@ -45,7 +45,7 @@ import java.util.function.Predicate;
  *
  * // main config + extra files as nested groups, optionally permission-gated:
  * ConfigCommands.forRoot(MOD_ID, feedback)
- *         .main(config)                    // keys native under /<root> config
+ *         .add(config)                    // keys native under /<root> config
  *         .group("engines", enginesConfig) // /<root> config engines <key> ...
  *         .requires(src -> src.hasPermissionLevel(2))
  *         .register(dispatcher);
@@ -59,7 +59,7 @@ public final class ConfigCommands {
     /**
      * Registers {@code /<root> config …} + {@code /<root> reload-configs} for a single config.
      *
-     * <p>Shorthand for {@code forRoot(root, feedback).main(config).register(dispatcher)}.
+     * <p>Shorthand for {@code forRoot(root, feedback).add(config).register(dispatcher)}.
      *
      * @param dispatcher the command dispatcher to register into
      * @param root the root literal (typically the mod id)
@@ -69,7 +69,7 @@ public final class ConfigCommands {
      */
     public static <S> void register(
             CommandDispatcher<S> dispatcher, String root, Config config, CommandFeedback<S> feedback) {
-        forRoot(root, feedback).main(config).register(dispatcher);
+        forRoot(root, feedback).add(config).register(dispatcher);
     }
 
     /**
@@ -84,8 +84,8 @@ public final class ConfigCommands {
     }
 
     /**
-     * Fluent builder for a config command surface: one native {@link #main(Config) main} config plus
-     * any number of nested {@link #group(String, Config) groups}, with an optional
+     * Fluent builder for a config command surface: one or more {@link #add(Config) native} configs
+     * plus any number of nested {@link #group(String, Config) groups}, with an optional
      * {@link #requires(Predicate) permission gate}.
      *
      * @param <S> the command source type
@@ -94,7 +94,7 @@ public final class ConfigCommands {
         private final String root;
         private final CommandFeedback<S> feedback;
         private final Map<String, Config> groups = new LinkedHashMap<>();
-        private Config main;
+        private final List<Config> nativeConfigs = new ArrayList<>();
         private Predicate<S> requirement;
 
         private Builder(String root, CommandFeedback<S> feedback) {
@@ -103,13 +103,14 @@ public final class ConfigCommands {
         }
 
         /**
-         * Sets the config whose keys appear natively under {@code /<root> config}.
+         * Adds a config whose keys appear natively under {@code /<root> config}. Call it more than
+         * once to flatten several files together at that level.
          *
-         * @param config the main config
+         * @param config a config whose keys go directly under {@code config}
          * @return this builder
          */
-        public Builder<S> main(Config config) {
-            this.main = config;
+        public Builder<S> add(Config config) {
+            nativeConfigs.add(config);
             return this;
         }
 
@@ -157,9 +158,17 @@ public final class ConfigCommands {
          */
         public LiteralArgumentBuilder<S> build() {
             LiteralArgumentBuilder<S> configLit = LiteralArgumentBuilder.literal("config");
-            if (main != null) {
-                configLit.executes(ctx -> listKeys(ctx, main));
-                addKeys(configLit, main);
+            if (!nativeConfigs.isEmpty()) {
+                configLit.executes(ctx -> {
+                    int total = 0;
+                    for (Config config : nativeConfigs) {
+                        total += listKeys(ctx, config);
+                    }
+                    return total;
+                });
+                for (Config config : nativeConfigs) {
+                    addKeys(configLit, config);
+                }
             }
             for (Map.Entry<String, Config> entry : groups.entrySet()) {
                 configLit.then(keyedNode(entry.getKey(), entry.getValue()));
@@ -216,10 +225,7 @@ public final class ConfigCommands {
         }
 
         private List<Config> allConfigs() {
-            List<Config> all = new ArrayList<>();
-            if (main != null) {
-                all.add(main);
-            }
+            List<Config> all = new ArrayList<>(nativeConfigs);
             all.addAll(groups.values());
             return all;
         }

@@ -63,7 +63,7 @@ A mod with more than one config (see
 
 ```java
 ConfigCommands.forRoot(MOD_ID, feedback)
-        .main(config)                    // keys native under /<modid> config
+        .add(config)                    // keys native under /<modid> config
         .group("engines", engineConfig)  // /<modid> config engines <key> ...
         .group(pumpConfig)               // group name from the config id's last segment
         .register(dispatcher);
@@ -89,7 +89,7 @@ nodes (not the root), so the tree still merges with your other `/<modid> ...` co
 
 ```java
 ConfigCommands.forRoot(MOD_ID, feedback)
-        .main(config)
+        .add(config)
         .requires(source -> source.hasPermissionLevel(2))  // Fabric; NeoForge: source.hasPermission(2)
         .register(dispatcher);
 ```

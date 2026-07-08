@@ -126,7 +126,7 @@ class ConfigCommandsTest {
         dispatcher = new CommandDispatcher<>();
         feedback.clear();
         ConfigCommands.<Object>forRoot("examplemod", (src, msg) -> feedback.add(msg))
-                .main(config)
+                .add(config)
                 .group(engines) // name derived from id "examplemod.engines" -> "engines"
                 .register(dispatcher);
 
@@ -149,7 +149,7 @@ class ConfigCommandsTest {
         dispatcher = new CommandDispatcher<>();
         feedback.clear();
         ConfigCommands.<Object>forRoot("examplemod", (src, msg) -> feedback.add(msg))
-                .main(config)
+                .add(config)
                 .group("engines", engines)
                 .register(dispatcher);
 
@@ -162,6 +162,29 @@ class ConfigCommandsTest {
 
         assertEquals(6.0, config.get("engines.max").asDouble(), "main config reloaded");
         assertEquals(7.0, engines.get("stirling.min").asDouble(), "group config reloaded");
+    }
+
+    @Test
+    void groupsAreSeparateNamespacesSoKeysCanBeReused() throws CommandSyntaxException {
+        Config engines = Config.create("examplemod.engines", new InMemoryConfigStorage());
+        engines.defineInt("limit", 5).min(0).register();
+        engines.load();
+        Config pumps = Config.create("examplemod.pumps", new InMemoryConfigStorage());
+        pumps.defineInt("limit", 8).min(0).register(); // same key path "limit"
+        pumps.load();
+
+        dispatcher = new CommandDispatcher<>();
+        feedback.clear();
+        ConfigCommands.<Object>forRoot("examplemod", (src, msg) -> feedback.add(msg))
+                .group(engines)
+                .group(pumps)
+                .register(dispatcher);
+
+        run("examplemod config engines limit 3");
+        run("examplemod config pumps limit 9");
+
+        assertEquals(3, engines.get("limit").asInt());
+        assertEquals(9, pumps.get("limit").asInt(), "the reused key path in another group is independent");
     }
 
     private static void seed(InMemoryConfigStorage storage, String id, String path, JsonPrimitive value) {
