@@ -525,19 +525,37 @@ public final class Config {
      * Ensures a min/max pair is ordered, raising the minimum to equal the maximum when it exceeds it.
      *
      * <p>Intended for use inside a sanitize hook. If {@code min <= max} nothing changes; otherwise the
-     * min key is set to the max value (marking its file dirty).
+     * min key is set to the max value (marking the config dirty).
+     *
+     * <p>The pair is read and repaired <em>without</em> validation, so this composes with
+     * {@code minValueOf}/{@code maxValueOf} cross-field constraints on the same keys: an inverted pair
+     * is exactly what those validators reject, and this repairs it rather than throwing.
      *
      * @param minKey the key holding the lower bound
      * @param maxKey the key holding the upper bound
      * @param <T> the numeric, comparable value type
      */
     public <T extends Number & Comparable<T>> void repairMinMax(ConfigKey<T> minKey, ConfigKey<T> maxKey) {
-        T min = get(minKey);
-        T max = get(maxKey);
+        T min = rawValue(minKey);
+        T max = rawValue(maxKey);
         if (min.compareTo(max) <= 0) {
             return;
         }
-        set(minKey, max);
+        setRaw(minKey.path(), max);
+    }
+
+    private <T> T rawValue(ConfigKey<T> key) {
+        assertOwns(key);
+        JsonElement element = JsonPaths.get(documentOrLoad(), key.path());
+        if (element == null || element.isJsonNull()) {
+            return key.definition().defaultValue();
+        }
+        try {
+            return ConfigValues.fromJson(
+                    element, key.definition().type(), key.definition().valueClass());
+        } catch (ConfigException e) {
+            return key.definition().defaultValue();
+        }
     }
 
     /**
