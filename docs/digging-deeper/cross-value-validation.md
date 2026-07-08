@@ -52,6 +52,10 @@ the right place for cross-field repair that no single-key constraint can express
 `bootstrap(Config)` method is the conventional place to register them — see
 [The Bootstrap Convention](digging-deeper/bootstrap-convention.md).
 
+`repairMinMax` reads and writes the pair **without** validation, so it composes with the
+`minValueOf`/`maxValueOf` constraints above: an inverted pair on disk is exactly what those
+validators reject, and the hook heals it instead of throwing.
+
 ## Next steps
 
 - [The Bootstrap Convention](digging-deeper/bootstrap-convention.md) — where sanitize hooks are

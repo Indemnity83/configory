@@ -60,6 +60,37 @@ class ConfigCrossFieldTest {
     }
 
     @Test
+    void repairMinMaxHealsInvertedPairWithCrossFieldValidators() {
+        InMemoryConfigStorage storage = new InMemoryConfigStorage();
+        Config config = Config.create("engines", storage);
+        AtomicReference<ConfigKey<Double>> maxRef = new AtomicReference<>();
+        AtomicReference<ConfigKey<Double>> minRef = new AtomicReference<>();
+        ConfigKey<Double> min = config.define("stirling.min_output")
+                .asDouble()
+                .defaultValue(3.0)
+                .min(0.0)
+                .maxValueOf(maxRef::get)
+                .register();
+        ConfigKey<Double> max = config.define("stirling.max_output")
+                .asDouble()
+                .defaultValue(10.0)
+                .min(0.0)
+                .minValueOf(minRef::get)
+                .register();
+        minRef.set(min);
+        maxRef.set(max);
+
+        // Force an inverted pair via raw (unvalidated) sets, as a hand-edited file would.
+        config.set("stirling.min_output", 12.0);
+        config.set("stirling.max_output", 10.0);
+
+        // Regression (#51): the validating read used to throw here instead of repairing.
+        assertDoesNotThrow(() -> config.repairMinMax(min, max));
+        assertEquals(10.0, config.get(min), "min clamped down to max");
+        assertEquals(10.0, config.get(max));
+    }
+
+    @Test
     void sanitizeHookRunsOnLoad() {
         InMemoryConfigStorage storage = new InMemoryConfigStorage();
         Config config = Config.create("engines", storage);
