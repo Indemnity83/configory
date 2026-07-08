@@ -47,8 +47,8 @@ class ConfigCommandsTest {
     }
 
     @Test
-    void setUpdatesConfigAndReports() throws CommandSyntaxException {
-        run("examplemod config set engines.max 5.5");
+    void keyWithValueSets() throws CommandSyntaxException {
+        run("examplemod config engines.max 5.5");
 
         assertEquals(5.5, config.get("engines.max").asDouble());
         assertTrue(feedback.stream().anyMatch(m -> m.contains("engines.max") && m.contains("5.5")));
@@ -56,21 +56,21 @@ class ConfigCommandsTest {
 
     @Test
     void setRejectsOutOfRangeValueAndLeavesConfigUnchanged() throws CommandSyntaxException {
-        run("examplemod config set engines.max -1.0");
+        run("examplemod config engines.max -1.0");
 
         assertEquals(10.0, config.get("engines.max").asDouble());
         assertTrue(feedback.stream().anyMatch(m -> m.startsWith("Rejected")));
     }
 
     @Test
-    void getReportsCurrentValue() throws CommandSyntaxException {
-        run("examplemod config get core.count");
+    void keyWithoutValueReportsCurrentValue() throws CommandSyntaxException {
+        run("examplemod config core.count");
         assertTrue(feedback.stream().anyMatch(m -> m.contains("core.count") && m.contains("4")));
     }
 
     @Test
-    void listCoversOnlyExposedKeys() throws CommandSyntaxException {
-        int count = run("examplemod config list");
+    void bareConfigListsOnlyExposedKeys() throws CommandSyntaxException {
+        int count = run("examplemod config");
 
         assertEquals(3, count, "3 exposed keys; the unexposed secret is excluded");
         assertTrue(feedback.stream().noneMatch(m -> m.contains("core.secret")));
@@ -78,36 +78,32 @@ class ConfigCommandsTest {
 
     @Test
     void enumSetAcceptsAConstantAndRejectsUnknown() throws CommandSyntaxException {
-        run("examplemod config set core.mode AUTO");
+        run("examplemod config core.mode AUTO");
         assertEquals(Mode.AUTO, config.get("core.mode").asEnum(Mode.class));
 
-        run("examplemod config set core.mode SIDEWAYS");
+        run("examplemod config core.mode SIDEWAYS");
         assertEquals(Mode.AUTO, config.get("core.mode").asEnum(Mode.class), "unknown constant is rejected");
     }
 
     @Test
-    void hiddenKeyHasNoSetOrGetCommand() {
-        assertThrows(CommandSyntaxException.class, () -> run("examplemod config set core.secret x"));
-        assertThrows(CommandSyntaxException.class, () -> run("examplemod config get core.secret"));
+    void hiddenKeyHasNoGetOrSetCommand() {
+        assertThrows(CommandSyntaxException.class, () -> run("examplemod config core.secret"));
+        assertThrows(CommandSyntaxException.class, () -> run("examplemod config core.secret x"));
     }
 
     @Test
-    void reloadRefreshesFromDisk() throws CommandSyntaxException {
+    void reloadConfigsRefreshesFromDisk() throws CommandSyntaxException {
         config.save(); // clear the dirty state from applied defaults so reload() is allowed
 
-        // change the backing source out from under the config, then reload through the command
-        JsonObject external = new JsonObject();
-        JsonPaths.set(external, ConfigPath.parse("engines.max"), new JsonPrimitive(6.0));
-        storage.seed("examplemod", external);
-
-        run("examplemod config reload");
+        seed(storage, "examplemod", "engines.max", new JsonPrimitive(6.0));
+        run("examplemod reload-configs");
 
         assertEquals(6.0, config.get("engines.max").asDouble(), "reload picked up the external change");
         assertTrue(feedback.stream().anyMatch(m -> m.contains("Reloaded")));
     }
 
     @Test
-    void configNodeMergesWithSiblingCommandsUnderTheSameRoot() throws CommandSyntaxException {
+    void mergesWithSiblingCommandsUnderTheSameRoot() throws CommandSyntaxException {
         dispatcher.register(LiteralArgumentBuilder.<Object>literal("examplemod")
                 .then(LiteralArgumentBuilder.<Object>literal("ping").executes(c -> {
                     feedback.add("pong");
@@ -117,23 +113,60 @@ class ConfigCommandsTest {
         run("examplemod ping");
         assertTrue(feedback.contains("pong"), "sibling command coexists");
 
-        run("examplemod config get core.count");
+        run("examplemod config core.count");
         assertTrue(feedback.stream().anyMatch(m -> m.contains("core.count")), "config commands still work");
     }
 
     @Test
-    void multipleConfigsShareARootUnderDistinctLabels() throws CommandSyntaxException {
+    void groupsNestUnderConfigWithNameDerivedFromId() throws CommandSyntaxException {
         Config engines = Config.create("examplemod.engines", new InMemoryConfigStorage());
         engines.defineDouble("stirling.min", 3.0).min(0.0).register();
         engines.load();
-        ConfigCommands.register(dispatcher, "examplemod", "engines", engines, (src, msg) -> feedback.add(msg));
 
-        // the main config's subtree still works...
-        run("examplemod config get core.count");
+        dispatcher = new CommandDispatcher<>();
+        feedback.clear();
+        ConfigCommands.<Object>forRoot("examplemod", (src, msg) -> feedback.add(msg))
+                .main(config)
+                .group(engines) // name derived from id "examplemod.engines" -> "engines"
+                .register(dispatcher);
+
+        // main keys are native under /examplemod config
+        run("examplemod config core.count");
         assertTrue(feedback.stream().anyMatch(m -> m.contains("core.count")));
 
-        // ...and the second config lives under its own label
-        run("examplemod engines set stirling.min 5.0");
+        // the group nests one layer deeper
+        run("examplemod config engines stirling.min 5.0");
         assertEquals(5.0, engines.get("stirling.min").asDouble());
+    }
+
+    @Test
+    void reloadConfigsReloadsMainAndGroups() throws CommandSyntaxException {
+        InMemoryConfigStorage engineStorage = new InMemoryConfigStorage();
+        Config engines = Config.create("examplemod.engines", engineStorage);
+        engines.defineDouble("stirling.min", 3.0).min(0.0).register();
+        engines.load();
+
+        dispatcher = new CommandDispatcher<>();
+        feedback.clear();
+        ConfigCommands.<Object>forRoot("examplemod", (src, msg) -> feedback.add(msg))
+                .main(config)
+                .group("engines", engines)
+                .register(dispatcher);
+
+        config.save();
+        engines.save();
+        seed(storage, "examplemod", "engines.max", new JsonPrimitive(6.0));
+        seed(engineStorage, "examplemod.engines", "stirling.min", new JsonPrimitive(7.0));
+
+        run("examplemod reload-configs");
+
+        assertEquals(6.0, config.get("engines.max").asDouble(), "main config reloaded");
+        assertEquals(7.0, engines.get("stirling.min").asDouble(), "group config reloaded");
+    }
+
+    private static void seed(InMemoryConfigStorage storage, String id, String path, JsonPrimitive value) {
+        JsonObject document = new JsonObject();
+        JsonPaths.set(document, ConfigPath.parse(path), value);
+        storage.seed(id, document);
     }
 }
