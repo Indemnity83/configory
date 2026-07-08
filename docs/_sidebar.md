@@ -25,6 +25,7 @@
   - [Custom Storage Backends](digging-deeper/custom-storage.md)
   - [Error Handling](digging-deeper/error-handling.md)
   - [Generated Files](digging-deeper/generated-files.md)
+  - [Multiloader Integration](digging-deeper/multiloader-integration.md)
 
 - **Reference**
 
