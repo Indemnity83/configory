@@ -84,7 +84,7 @@ class ConfigCrossFieldTest {
         config.set("stirling.min_output", 12.0);
         config.set("stirling.max_output", 10.0);
 
-        // Regression (#51): the validating read used to throw here instead of repairing.
+        // repairMinMax reads and writes raw, so it heals the inverted pair the validators reject.
         assertDoesNotThrow(() -> config.repairMinMax(min, max));
         assertEquals(10.0, config.get(min), "min clamped down to max");
         assertEquals(10.0, config.get(max));
