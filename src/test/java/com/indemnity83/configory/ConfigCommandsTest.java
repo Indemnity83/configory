@@ -120,4 +120,20 @@ class ConfigCommandsTest {
         run("examplemod config get core.count");
         assertTrue(feedback.stream().anyMatch(m -> m.contains("core.count")), "config commands still work");
     }
+
+    @Test
+    void multipleConfigsShareARootUnderDistinctLabels() throws CommandSyntaxException {
+        Config engines = Config.create("examplemod.engines", new InMemoryConfigStorage());
+        engines.defineDouble("stirling.min", 3.0).min(0.0).register();
+        engines.load();
+        ConfigCommands.register(dispatcher, "examplemod", "engines", engines, (src, msg) -> feedback.add(msg));
+
+        // the main config's subtree still works...
+        run("examplemod config get core.count");
+        assertTrue(feedback.stream().anyMatch(m -> m.contains("core.count")));
+
+        // ...and the second config lives under its own label
+        run("examplemod engines set stirling.min 5.0");
+        assertEquals(5.0, engines.get("stirling.min").asDouble());
+    }
 }

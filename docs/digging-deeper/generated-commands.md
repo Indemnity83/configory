@@ -64,8 +64,28 @@ register it yourself instead of using the convenience (this also lets you place 
 ```java
 dispatcher.register(literal(MOD_ID).then(
         ConfigCommands.configNode(config, feedback)
-                .requires(source -> source.hasPermissionLevel(2)))); // Fabric; NeoForge: source.hasPermission(2)
+                .requires(source -> source.hasPermissionLevel(2))));  // Fabric; NeoForge: hasPermission(2)
 ```
+
+## Multiple config files
+
+A mod with more than one config (see
+[`configFor(MOD_ID, "engines")`](getting-started/recommended-structure.md)) gives each its own
+subtree under the shared root by passing a **label**:
+
+```java
+ConfigCommands.register(dispatcher, MOD_ID, config, feedback);                   // /examplemod config ...
+ConfigCommands.register(dispatcher, MOD_ID, "engines", engineConfig, feedback);  // /examplemod engines ...
+```
+
+Brigadier merges the shared `examplemod` root, so both coexist:
+
+```text
+/examplemod config  list | get <key> | set <key> <value> | reload
+/examplemod engines list | get <key> | set <key> <value> | reload
+```
+
+Give each config a distinct label — two under the same label would collide.
 
 ## Loader wiring
 

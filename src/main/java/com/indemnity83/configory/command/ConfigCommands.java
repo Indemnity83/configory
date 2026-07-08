@@ -53,7 +53,27 @@ public final class ConfigCommands {
      */
     public static <S> void register(
             CommandDispatcher<S> dispatcher, String root, Config config, CommandFeedback<S> feedback) {
-        dispatcher.register(LiteralArgumentBuilder.<S>literal(root).then(configNode(config, feedback)));
+        register(dispatcher, root, "config", config, feedback);
+    }
+
+    /**
+     * Registers {@code <root> <label> …} into the dispatcher for the config's exposed keys.
+     *
+     * <p>Use a distinct {@code label} per config to give each its own subtree under a shared root —
+     * {@code register(d, MOD_ID, "config", main, fb)} and {@code register(d, MOD_ID, "engines", engines, fb)}
+     * produce {@code /<root> config …} and {@code /<root> engines …}. Brigadier merges the shared root,
+     * so the two coexist.
+     *
+     * @param dispatcher the command dispatcher to register into
+     * @param root the root literal (typically the mod id)
+     * @param label the literal under {@code root} for this config's commands
+     * @param config the config whose exposed keys drive the commands
+     * @param feedback delivers result messages to the command source
+     * @param <S> the command source type
+     */
+    public static <S> void register(
+            CommandDispatcher<S> dispatcher, String root, String label, Config config, CommandFeedback<S> feedback) {
+        dispatcher.register(LiteralArgumentBuilder.<S>literal(root).then(configNode(label, config, feedback)));
     }
 
     /**
@@ -68,7 +88,22 @@ public final class ConfigCommands {
      * @param <S> the command source type
      */
     public static <S> LiteralArgumentBuilder<S> configNode(Config config, CommandFeedback<S> feedback) {
-        return LiteralArgumentBuilder.<S>literal("config")
+        return configNode("config", config, feedback);
+    }
+
+    /**
+     * {@return a command node named {@code label} with {@code list}/{@code get}/{@code set}/{@code reload}
+     * for the config's exposed keys}
+     *
+     * <p>Give each config a distinct label when composing several under one root.
+     *
+     * @param label the node's literal name
+     * @param config the config whose exposed keys drive the commands
+     * @param feedback delivers result messages to the command source
+     * @param <S> the command source type
+     */
+    public static <S> LiteralArgumentBuilder<S> configNode(String label, Config config, CommandFeedback<S> feedback) {
+        return LiteralArgumentBuilder.<S>literal(label)
                 .then(listNode(config, feedback))
                 .then(getNode(config, feedback))
                 .then(setNode(config, feedback))
