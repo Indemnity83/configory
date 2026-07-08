@@ -20,6 +20,7 @@ public final class ConfigDefinition<T> {
     private final Class<T> valueClass;
     private final T defaultValue;
     private final String description;
+    private final boolean exposed;
     private final List<ConfigConstraint<T>> constraints;
 
     /**
@@ -31,6 +32,8 @@ public final class ConfigDefinition<T> {
      * @param defaultValue the value used when the key is unset or the stored value is invalid; must
      *     not be null
      * @param description a human-readable description for tooling; a null description becomes empty
+     * @param exposed whether this value is included in a generated command surface (the default;
+     *     unset by {@code hidden()})
      * @param constraints the validation constraints applied in order
      */
     public ConfigDefinition(
@@ -39,12 +42,14 @@ public final class ConfigDefinition<T> {
             Class<T> valueClass,
             T defaultValue,
             String description,
+            boolean exposed,
             List<ConfigConstraint<T>> constraints) {
         this.path = Objects.requireNonNull(path, "path");
         this.type = Objects.requireNonNull(type, "type");
         this.valueClass = Objects.requireNonNull(valueClass, "valueClass");
         this.defaultValue = Objects.requireNonNull(defaultValue, "defaultValue");
         this.description = description == null ? "" : description;
+        this.exposed = exposed;
         this.constraints = List.copyOf(new ArrayList<>(constraints));
     }
 
@@ -81,6 +86,17 @@ public final class ConfigDefinition<T> {
      */
     public String description() {
         return description;
+    }
+
+    /**
+     * {@return whether this value is exposed to a generated command surface}
+     *
+     * <p>True by default; {@code hidden()} opts a key out.
+     *
+     * @see com.indemnity83.configory.builder.BaseConfigBuilder#hidden()
+     */
+    public boolean isExposed() {
+        return exposed;
     }
 
     /**

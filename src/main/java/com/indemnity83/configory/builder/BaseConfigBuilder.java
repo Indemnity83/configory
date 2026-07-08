@@ -22,6 +22,7 @@ public abstract class BaseConfigBuilder<T, SELF extends BaseConfigBuilder<T, SEL
     protected final Class<T> valueClass;
     protected T defaultValue;
     protected String description = "";
+    protected boolean exposed = true;
     protected final List<ConfigConstraint<T>> constraints = new ArrayList<>();
 
     /**
@@ -91,6 +92,20 @@ public abstract class BaseConfigBuilder<T, SELF extends BaseConfigBuilder<T, SEL
     }
 
     /**
+     * Excludes this value from the generated command surface.
+     *
+     * <p>Opt-out: every key appears in the {@code list}/{@code get}/{@code set} commands built by
+     * {@code ConfigCommands} by default; call this to keep one out — a setting driven by its own
+     * command, or one players shouldn't change.
+     *
+     * @return this builder
+     */
+    public SELF hidden() {
+        this.exposed = false;
+        return self();
+    }
+
+    /**
      * Builds the definition, registers it with the config, and returns the resulting typed key.
      *
      * @return a {@link ConfigKey} for the newly registered value
@@ -101,7 +116,7 @@ public abstract class BaseConfigBuilder<T, SELF extends BaseConfigBuilder<T, SEL
             throw new ConfigException("Config key " + path.fullPath() + " is missing a default value.");
         }
         ConfigDefinition<T> definition =
-                new ConfigDefinition<>(path, type, valueClass, defaultValue, description, constraints);
+                new ConfigDefinition<>(path, type, valueClass, defaultValue, description, exposed, constraints);
         return config.registerDefinition(definition);
     }
 }
