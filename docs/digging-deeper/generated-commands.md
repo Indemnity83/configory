@@ -78,8 +78,10 @@ produces:
 /<modid> reload-configs                  reload the main config and every group
 ```
 
-Native keys and group names share one level, so a **native key whose literal equals a group name**
-would collide — keep them distinct (a mod usually uses one shape or the other).
+Native keys and group names share one level. Configory **fails fast at registration** (throws
+`ConfigException`) on any clash — a native key whose literal equals a group name, two groups that
+derive the same name, or the same key defined by two `add()`ed configs — rather than letting
+Brigadier silently drop one. Keep them distinct (a mod usually uses one shape or the other).
 
 ## Restricting who can change config
 
@@ -93,6 +95,38 @@ ConfigCommands.forRoot(MOD_ID, feedback)
         .requires(source -> source.hasPermissionLevel(2))  // Fabric; NeoForge: source.hasPermission(2)
         .register(dispatcher);
 ```
+
+## Compose into a root you already own
+
+If your mod's root already owns other subcommands (`/<modid> debug`, `/<modid> reset`, …), build the
+config surface with `ConfigCommands.builder(feedback)` — which has **no root of its own** — and attach
+it to your literal with `buildInto(root)`. The `config` and `reload-configs` nodes **inherit whatever
+permission your root already carries**, so you don't repeat `.requires(...)`:
+
+```java
+var root = literal(MOD_ID).requires(op)
+        .then(debugCommand)
+        .then(resetCommand);
+
+ConfigCommands.builder(feedback)
+        .add(config)
+        .group("engines", engineConfig)
+        .buildInto(root);          // attaches config + reload-configs, returns root
+
+dispatcher.register(root);
+```
+
+For finer control — placing the two nodes at different depths, or omitting `reload-configs` — take
+them separately with `configNode()` and `reloadNode()`:
+
+```java
+var cc = ConfigCommands.builder(feedback).add(config);
+myRoot.then(cc.configNode());     // config only — no reload-configs
+adminRoot.then(cc.reloadNode());  // reload placed elsewhere
+```
+
+`build()` / `register(...)` are only for the `forRoot(root, feedback)` entry point that owns the root;
+calling them on a `builder(feedback)` throws and points you at `buildInto` / `configNode`.
 
 ## Loader wiring
 

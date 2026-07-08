@@ -16,9 +16,12 @@ import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 
 /**
@@ -40,15 +43,19 @@ import java.util.function.Predicate;
  * type, a feedback callback, and the registration into their loader's command event.
  *
  * <pre>{@code
- * // single config:
+ * // single config, configory owns the root literal:
  * ConfigCommands.register(dispatcher, MOD_ID, config, (src, msg) -> src.sendMessage(msg));
  *
- * // main config + extra files as nested groups, optionally permission-gated:
+ * // main config + extra files as groups, configory owns the root:
  * ConfigCommands.forRoot(MOD_ID, feedback)
- *         .add(config)                    // keys native under /<root> config
+ *         .add(config)                     // keys native under /<root> config
  *         .group("engines", enginesConfig) // /<root> config engines <key> ...
  *         .requires(src -> src.hasPermissionLevel(2))
  *         .register(dispatcher);
+ *
+ * // compose into a root you already own (config/reload-configs inherit its gate):
+ * ConfigCommands.builder(feedback).add(config).buildInto(
+ *         literal(MOD_ID).requires(op).then(myOtherCommand));
  * }</pre>
  */
 public final class ConfigCommands {
@@ -75,12 +82,31 @@ public final class ConfigCommands {
     /**
      * {@return a builder for a config command surface rooted at {@code root}}
      *
+     * <p>Use this when configory owns the root literal — {@link Builder#build()} and
+     * {@link Builder#register(CommandDispatcher)} wrap the tree in {@code literal(root)}. To nest the
+     * nodes under a root your mod already owns, use {@link #builder(CommandFeedback)} instead.
+     *
      * @param root the root literal (typically the mod id)
      * @param feedback delivers result messages to the command source
      * @param <S> the command source type
      */
     public static <S> Builder<S> forRoot(String root, CommandFeedback<S> feedback) {
         return new Builder<>(root, feedback);
+    }
+
+    /**
+     * {@return a rootless builder for composing the {@code config} / {@code reload-configs} nodes into
+     * a root your mod already owns}
+     *
+     * <p>Use {@link Builder#buildInto(LiteralArgumentBuilder)} (or the {@link Builder#configNode()} /
+     * {@link Builder#reloadNode()} primitives) to place the nodes; {@link Builder#build()} and
+     * {@link Builder#register(CommandDispatcher)} throw, since there is no root literal to own.
+     *
+     * @param feedback delivers result messages to the command source
+     * @param <S> the command source type
+     */
+    public static <S> Builder<S> builder(CommandFeedback<S> feedback) {
+        return new Builder<>(null, feedback);
     }
 
     /**
@@ -94,7 +120,8 @@ public final class ConfigCommands {
         private final String root;
         private final CommandFeedback<S> feedback;
         private final Map<String, Config> groups = new LinkedHashMap<>();
-        private final List<Config> nativeConfigs = new ArrayList<>();
+        // Identity-deduped so add(config) on the same instance twice is a no-op, not a "duplicate key" throw.
+        private final Set<Config> nativeConfigs = new LinkedHashSet<>();
         private Predicate<S> requirement;
 
         private Builder(String root, CommandFeedback<S> feedback) {
@@ -104,7 +131,8 @@ public final class ConfigCommands {
 
         /**
          * Adds a config whose keys appear natively under {@code /<root> config}. Call it more than
-         * once to flatten several files together at that level.
+         * once to flatten several files together at that level; adding the same instance twice is a
+         * no-op.
          *
          * @param config a config whose keys go directly under {@code config}
          * @return this builder
@@ -120,8 +148,14 @@ public final class ConfigCommands {
          * @param name the group literal
          * @param config the config for this group
          * @return this builder
+         * @throws ConfigException if {@code name} is already used by another group
          */
         public Builder<S> group(String name, Config config) {
+            // Eager: groups is a map, so a second put(name, …) would silently overwrite. That would
+            // also hide the collision from validateNoCollisions(), which only sees the collapsed map.
+            if (groups.containsKey(name)) {
+                throw new ConfigException("Duplicate config command group '" + name + "'.");
+            }
             groups.put(name, config);
             return this;
         }
@@ -132,6 +166,7 @@ public final class ConfigCommands {
          *
          * @param config the config for this group
          * @return this builder
+         * @throws ConfigException if another group already derives the same name
          */
         public Builder<S> group(Config config) {
             return group(lastSegment(config.id()), config);
@@ -140,8 +175,8 @@ public final class ConfigCommands {
         /**
          * Restricts the generated {@code config} and {@code reload-configs} commands to sources that
          * satisfy {@code permission} (typically operators). The requirement is applied to those nodes,
-         * not the root literal, so the tree still merges with the mod's other {@code /<root> …}
-         * commands.
+         * not a wrapping root literal, so the tree still merges with the mod's other {@code /<root> …}
+         * commands. When composing into a root you already gate, you can skip this and inherit it.
          *
          * @param permission the source predicate to require
          * @return this builder
@@ -152,11 +187,13 @@ public final class ConfigCommands {
         }
 
         /**
-         * {@return the root command node with the {@code config} and {@code reload-configs} subtrees}
+         * {@return the {@code config} subtree — native keys plus group children, with the permission
+         * gate applied} Place it under a root you own; pair it with {@link #reloadNode()} for reload.
          *
-         * <p>Register it yourself, or nest it, or use {@link #register(CommandDispatcher)}.
+         * @throws ConfigException if a native key collides with another native key or a group name
          */
-        public LiteralArgumentBuilder<S> build() {
+        public LiteralArgumentBuilder<S> configNode() {
+            validateNoCollisions();
             LiteralArgumentBuilder<S> configLit = LiteralArgumentBuilder.literal("config");
             if (!nativeConfigs.isEmpty()) {
                 configLit.executes(ctx -> {
@@ -173,21 +210,83 @@ public final class ConfigCommands {
             for (Map.Entry<String, Config> entry : groups.entrySet()) {
                 configLit.then(keyedNode(entry.getKey(), entry.getValue()));
             }
-            LiteralArgumentBuilder<S> reload = reloadConfigsNode();
             if (requirement != null) {
                 configLit.requires(requirement);
+            }
+            return configLit;
+        }
+
+        /**
+         * {@return the {@code reload-configs} subtree — reloads every added config and group, with the
+         * permission gate applied} Place it under a root you own; pair it with {@link #configNode()}.
+         */
+        public LiteralArgumentBuilder<S> reloadNode() {
+            LiteralArgumentBuilder<S> reload = reloadConfigsNode();
+            if (requirement != null) {
                 reload.requires(requirement);
             }
-            return LiteralArgumentBuilder.<S>literal(root).then(configLit).then(reload);
+            return reload;
+        }
+
+        /**
+         * Attaches the {@code config} and {@code reload-configs} nodes onto {@code root} and returns it,
+         * so it chains: {@code dispatcher.register(builder.buildInto(literal(MOD_ID)))}. The nodes
+         * inherit any permission {@code root} already carries.
+         *
+         * @param root the root literal to compose into
+         * @return {@code root}, with the two nodes added
+         */
+        public LiteralArgumentBuilder<S> buildInto(LiteralArgumentBuilder<S> root) {
+            return root.then(configNode()).then(reloadNode());
+        }
+
+        /**
+         * {@return the root command node with the {@code config} and {@code reload-configs} subtrees}
+         *
+         * <p>Register it yourself, or use {@link #register(CommandDispatcher)}.
+         *
+         * @throws ConfigException if this builder has no root (created via {@link #builder(CommandFeedback)})
+         */
+        public LiteralArgumentBuilder<S> build() {
+            if (root == null) {
+                throw new ConfigException("No root literal — use forRoot(root, feedback), or buildInto(root)"
+                        + " / configNode() to place the nodes under your own root.");
+            }
+            return buildInto(LiteralArgumentBuilder.<S>literal(root));
         }
 
         /**
          * Builds and registers the command surface into {@code dispatcher}.
          *
          * @param dispatcher the command dispatcher to register into
+         * @throws ConfigException if this builder has no root (created via {@link #builder(CommandFeedback)})
          */
         public void register(CommandDispatcher<S> dispatcher) {
             dispatcher.register(build());
+        }
+
+        /**
+         * Rejects clashes that Brigadier would otherwise resolve by silent last-wins: a native key
+         * defined by more than one added config, or a group whose name equals a native key. (Two groups
+         * with the same name are already rejected eagerly by {@link #group(String, Config)}.)
+         */
+        private void validateNoCollisions() {
+            Set<String> literals = new HashSet<>();
+            for (Config config : nativeConfigs) {
+                for (ConfigDefinition<?> definition : config.exposedDefinitions()) {
+                    String path = definition.path().fullPath();
+                    if (!literals.add(path)) {
+                        throw new ConfigException(
+                                "Duplicate config command key '" + path + "' — defined by more than one added config.");
+                    }
+                }
+            }
+            for (String name : groups.keySet()) {
+                if (!literals.add(name)) {
+                    throw new ConfigException(
+                            "Config command group '" + name + "' collides with a native key of the same name.");
+                }
+            }
         }
 
         private LiteralArgumentBuilder<S> keyedNode(String label, Config config) {

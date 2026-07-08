@@ -187,6 +187,113 @@ class ConfigCommandsTest {
         assertEquals(9, pumps.get("limit").asInt(), "the reused key path in another group is independent");
     }
 
+    @Test
+    void nativeKeyCollidingWithAGroupNameThrows() {
+        Config natives = Config.create("mod.natives", new InMemoryConfigStorage());
+        natives.defineInt("engines", 1).min(0).register(); // bare key equal to the group name below
+        natives.load();
+        Config group = Config.create("mod.group", new InMemoryConfigStorage());
+        group.defineInt("x", 1).min(0).register();
+        group.load();
+
+        ConfigCommands.Builder<Object> builder = ConfigCommands.<Object>forRoot("mod", (src, msg) -> {})
+                .add(natives)
+                .group("engines", group);
+
+        assertThrows(ConfigException.class, builder::build);
+    }
+
+    @Test
+    void twoGroupsDerivingTheSameNameThrow() {
+        Config a = Config.create("modA.engines", new InMemoryConfigStorage());
+        a.defineInt("x", 1).min(0).register();
+        a.load();
+        Config b = Config.create("modB.engines", new InMemoryConfigStorage());
+        b.defineInt("y", 1).min(0).register();
+        b.load();
+
+        ConfigCommands.Builder<Object> builder =
+                ConfigCommands.<Object>forRoot("mod", (src, msg) -> {}).group(a);
+
+        // both ids end in ".engines", so the second group derives the same name — rejected eagerly
+        assertThrows(ConfigException.class, () -> builder.group(b));
+    }
+
+    @Test
+    void twoNativeConfigsDefiningTheSameKeyThrow() {
+        Config a = Config.create("modA", new InMemoryConfigStorage());
+        a.defineInt("core.count", 1).min(0).register();
+        a.load();
+        Config b = Config.create("modB", new InMemoryConfigStorage());
+        b.defineInt("core.count", 2).min(0).register();
+        b.load();
+
+        ConfigCommands.Builder<Object> builder =
+                ConfigCommands.<Object>forRoot("mod", (src, msg) -> {}).add(a).add(b);
+
+        assertThrows(ConfigException.class, builder::build);
+    }
+
+    @Test
+    void addingTheSameConfigTwiceIsANoOp() {
+        ConfigCommands.Builder<Object> builder = ConfigCommands.<Object>forRoot("examplemod", (src, msg) -> {})
+                .add(config)
+                .add(config);
+
+        assertDoesNotThrow(builder::build); // identity-deduped, not a "duplicate key" collision
+    }
+
+    @Test
+    void buildIntoComposesUnderAForeignRoot() throws CommandSyntaxException {
+        dispatcher = new CommandDispatcher<>();
+        feedback.clear();
+        LiteralArgumentBuilder<Object> root = LiteralArgumentBuilder.<Object>literal("examplemod")
+                .then(LiteralArgumentBuilder.<Object>literal("ping").executes(c -> {
+                    feedback.add("pong");
+                    return 1;
+                }));
+
+        LiteralArgumentBuilder<Object> returned = ConfigCommands.<Object>builder((src, msg) -> feedback.add(msg))
+                .add(config)
+                .buildInto(root);
+        assertSame(root, returned, "buildInto returns the same root for chaining");
+        dispatcher.register(returned);
+
+        run("examplemod ping");
+        assertTrue(feedback.contains("pong"), "the pre-existing sibling still works");
+
+        run("examplemod config core.count");
+        assertTrue(feedback.stream().anyMatch(m -> m.contains("core.count")), "config nested under the foreign root");
+
+        config.save(); // clear the applied-defaults dirty state so reload() is allowed
+        run("examplemod reload-configs");
+        assertTrue(feedback.stream().anyMatch(m -> m.contains("Reloaded")), "reload-configs nested too");
+    }
+
+    @Test
+    void configNodeAndReloadNodeAttachIndependently() throws CommandSyntaxException {
+        dispatcher = new CommandDispatcher<>();
+        feedback.clear();
+        // Place only the config node — reload-configs is intentionally omitted.
+        var builder =
+                ConfigCommands.<Object>builder((src, msg) -> feedback.add(msg)).add(config);
+        dispatcher.register(LiteralArgumentBuilder.<Object>literal("examplemod").then(builder.configNode()));
+
+        run("examplemod config core.count");
+        assertTrue(feedback.stream().anyMatch(m -> m.contains("core.count")));
+
+        assertThrows(
+                CommandSyntaxException.class,
+                () -> run("examplemod reload-configs"),
+                "reloadNode() was not attached, so reload-configs is absent");
+    }
+
+    @Test
+    void rootlessBuilderBuildThrows() {
+        var builder = ConfigCommands.<Object>builder((src, msg) -> {}).add(config);
+        assertThrows(ConfigException.class, builder::build, "no root literal to own");
+    }
+
     private static void seed(InMemoryConfigStorage storage, String id, String path, JsonPrimitive value) {
         JsonObject document = new JsonObject();
         JsonPaths.set(document, ConfigPath.parse(path), value);
