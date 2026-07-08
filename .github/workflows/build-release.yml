@@ -73,15 +73,6 @@ jobs:
           version: ${{ steps.version.outputs.version }}
           version-type: release
 
-          # Minecraft versions are intentionally NOT listed here — mc-publish reads them from the
-          # jar's per-loader minecraft floors (fabric.mod.json depends, (neo)forge mods.toml
-          # versionRange), so the metadata files are the single source of truth. Loaders are declared
-          # explicitly to avoid ambiguity from shipping both mods.toml (Forge) and neoforge.mods.toml.
-          loaders: |
-            fabric
-            neoforge
-            forge
-
           files: |
             build/libs/configory-${{ steps.version.outputs.version }}.jar
             build/libs/configory-${{ steps.version.outputs.version }}-sources.jar
