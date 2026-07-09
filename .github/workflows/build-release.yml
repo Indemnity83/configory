@@ -73,6 +73,16 @@ jobs:
           version: ${{ steps.version.outputs.version }}
           version-type: release
 
+          # Declare loaders explicitly: mc-publish's auto-detection only recognized Fabric from a jar
+          # that ships all three loader manifests (fabric.mod.json + mods.toml + neoforge.mods.toml).
+          # game-versions is an open range, so it never needs bumping; the enforced per-loader
+          # Minecraft floors still live in the metadata files.
+          loaders: |
+            fabric
+            neoforge
+            forge
+          game-versions: ">=1.13"
+
           files: |
             build/libs/configory-${{ steps.version.outputs.version }}.jar
             build/libs/configory-${{ steps.version.outputs.version }}-sources.jar
