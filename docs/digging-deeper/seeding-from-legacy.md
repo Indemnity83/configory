@@ -3,6 +3,11 @@
 When a mod moves onto Configory from an older config system, you usually want to carry the user's
 existing settings over on first run instead of resetting everything to defaults.
 
+> [!NOTE]
+> This is for migrating from a **different** config system. If you've merely renamed a key **within**
+> Configory — same file, new path — reach for [`.alias(...)`](digging-deeper/renaming-keys.md)
+> instead; it carries the value forward with no bootstrap code.
+
 The pattern is: after bootstrap, read the legacy file **once**, parse each value and push it in with
 [`trySet`](the-basics/writing-and-saving.md) — both steps guard against bad data, so nothing throws —
 then `save()` and retire the legacy file so the migration never runs again.

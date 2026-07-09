@@ -33,6 +33,20 @@ final class JsonPaths {
         current.add(path.segments().getLast(), value);
     }
 
+    static boolean remove(JsonObject root, ConfigPath path) {
+        JsonElement current = root;
+        for (int i = 0; i < path.segments().size() - 1; i++) {
+            if (!(current instanceof JsonObject object)) {
+                return false;
+            }
+            current = object.get(path.segments().get(i));
+        }
+        if (current instanceof JsonObject parent) {
+            return parent.remove(path.segments().getLast()) != null;
+        }
+        return false;
+    }
+
     private static JsonObject childObject(JsonObject parent, String segment) {
         if (parent.get(segment) instanceof JsonObject object) {
             return object;

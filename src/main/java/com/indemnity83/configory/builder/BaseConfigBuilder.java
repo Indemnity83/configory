@@ -24,6 +24,7 @@ public abstract class BaseConfigBuilder<T, SELF extends BaseConfigBuilder<T, SEL
     protected String description = "";
     protected boolean exposed = true;
     protected final List<ConfigConstraint<T>> constraints = new ArrayList<>();
+    protected final List<ConfigPath> aliases = new ArrayList<>();
 
     /**
      * Creates a builder for a specific type.
@@ -92,6 +93,22 @@ public abstract class BaseConfigBuilder<T, SELF extends BaseConfigBuilder<T, SEL
     }
 
     /**
+     * Adds a prior path this key was stored at, so a renamed key migrates its old value.
+     *
+     * <p>On load, when the primary path holds no value, declared aliases are searched in the order
+     * added; the first present value that coerces and validates is adopted at the primary path.
+     * Every alias is then stripped from the document, so the rename settles on the next
+     * {@code save()}. Repeatable to declare more than one former name.
+     *
+     * @param path the former dotted path, e.g. {@code "core.old_speed"}
+     * @return this builder
+     */
+    public SELF alias(String path) {
+        this.aliases.add(ConfigPath.parse(path));
+        return self();
+    }
+
+    /**
      * Excludes this value from the generated command surface.
      *
      * <p>Opt-out: every key appears in the {@code list}/{@code get}/{@code set} commands built by
@@ -115,8 +132,8 @@ public abstract class BaseConfigBuilder<T, SELF extends BaseConfigBuilder<T, SEL
         if (defaultValue == null) {
             throw new ConfigException("Config key " + path.fullPath() + " is missing a default value.");
         }
-        ConfigDefinition<T> definition =
-                new ConfigDefinition<>(path, type, valueClass, defaultValue, description, exposed, constraints);
+        ConfigDefinition<T> definition = new ConfigDefinition<>(
+                path, type, valueClass, defaultValue, description, exposed, constraints, aliases);
         return config.registerDefinition(definition);
     }
 }

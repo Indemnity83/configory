@@ -44,6 +44,7 @@ public final class Config {
     private JsonObject document;
     private boolean dirty;
     private final Map<ConfigPath, ConfigDefinition<?>> definitions = new LinkedHashMap<>();
+    private final Map<ConfigPath, ConfigPath> aliasOwners = new LinkedHashMap<>();
     private final List<Runnable> sanitizeHooks = new ArrayList<>();
     private final Set<ConfigPath> validating = new HashSet<>();
 
@@ -291,15 +292,50 @@ public final class Config {
      * @param <T> the value type
      * @return a {@link ConfigKey} that can be used with {@link #get(ConfigKey)} and
      *     {@link #set(ConfigKey, Object)}
-     * @throws ConfigException if a definition is already registered at the same path
+     * @throws ConfigException if a definition is already registered at the same path, or an alias
+     *     clashes with a registered path, another key's alias, or its own primary path
      */
     public <T> ConfigKey<T> registerDefinition(ConfigDefinition<T> definition) {
-        if (definitions.containsKey(definition.path())) {
-            throw new ConfigException(
-                    "Duplicate config definition: " + definition.path().fullPath());
+        ConfigPath path = definition.path();
+        if (definitions.containsKey(path)) {
+            throw new ConfigException("Duplicate config definition: " + path.fullPath());
         }
-        definitions.put(definition.path(), definition);
+        if (aliasOwners.containsKey(path)) {
+            throw new ConfigException("Config path '" + path.fullPath() + "' is already an alias of '"
+                    + aliasOwners.get(path).fullPath() + "'.");
+        }
+        for (ConfigPath alias : definition.aliases()) {
+            assertAliasIsFree(path, alias);
+        }
+        definitions.put(path, definition);
+        for (ConfigPath alias : definition.aliases()) {
+            aliasOwners.put(alias, path);
+        }
         return new ConfigKey<>(id, definition);
+    }
+
+    private void assertAliasIsFree(ConfigPath owner, ConfigPath alias) {
+        if (nestsWithin(alias, owner) || nestsWithin(owner, alias)) {
+            throw new ConfigException(
+                    "Alias '" + alias.fullPath() + "' overlaps its own key '" + owner.fullPath() + "'.");
+        }
+        if (definitions.containsKey(alias)) {
+            throw new ConfigException("Alias '" + alias.fullPath() + "' clashes with a registered config key.");
+        }
+        ConfigPath existingOwner = aliasOwners.get(alias);
+        if (existingOwner != null) {
+            throw new ConfigException(
+                    "Alias '" + alias.fullPath() + "' is already an alias of '" + existingOwner.fullPath() + "'.");
+        }
+    }
+
+    private static boolean nestsWithin(ConfigPath ancestor, ConfigPath descendant) {
+        List<String> a = ancestor.segments();
+        List<String> d = descendant.segments();
+        if (a.size() > d.size()) {
+            return false;
+        }
+        return a.equals(d.subList(0, a.size()));
     }
 
     /**
@@ -607,18 +643,60 @@ public final class Config {
         JsonObject document = documentOrLoad();
         JsonElement element = JsonPaths.get(document, definition.path());
         if (element == null || element.isJsonNull()) {
-            writeDefault(document, definition);
-            return;
-        }
-        try {
-            T value = ConfigValues.fromJson(element, definition.type(), definition.valueClass());
-            ValidationResult result = definition.validate(value, this);
-            if (!result.valid()) {
+            if (!adoptAlias(document, definition)) {
                 writeDefault(document, definition);
             }
-        } catch (ConfigException e) {
-            writeDefault(document, definition);
+        } else {
+            try {
+                T value = ConfigValues.fromJson(element, definition.type(), definition.valueClass());
+                if (!definition.validate(value, this).valid()) {
+                    writeDefault(document, definition);
+                }
+            } catch (ConfigException e) {
+                writeDefault(document, definition);
+            }
         }
+        stripAliases(document, definition);
+    }
+
+    private <T> boolean adoptAlias(JsonObject document, ConfigDefinition<T> definition) {
+        for (ConfigPath alias : definition.aliases()) {
+            JsonElement element = JsonPaths.get(document, alias);
+            if (element == null || element.isJsonNull()) {
+                continue;
+            }
+            try {
+                T value = ConfigValues.fromJson(element, definition.type(), definition.valueClass());
+                if (definition.validate(value, this).valid()) {
+                    JsonPaths.set(document, definition.path(), ConfigValues.toJson(value));
+                    dirty = true;
+                    return true;
+                }
+            } catch (ConfigException ignored) {
+                // fall through to the next alias
+            }
+        }
+        return false;
+    }
+
+    private void stripAliases(JsonObject document, ConfigDefinition<?> definition) {
+        for (ConfigPath alias : definition.aliases()) {
+            if (isAncestorOfRegisteredKey(alias)) {
+                continue;
+            }
+            if (JsonPaths.remove(document, alias)) {
+                dirty = true;
+            }
+        }
+    }
+
+    private boolean isAncestorOfRegisteredKey(ConfigPath alias) {
+        for (ConfigPath key : definitions.keySet()) {
+            if (!key.equals(alias) && nestsWithin(alias, key)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void writeDefault(JsonObject document, ConfigDefinition<?> definition) {

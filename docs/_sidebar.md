@@ -23,6 +23,7 @@
   - [The Bootstrap Convention](digging-deeper/bootstrap-convention.md)
   - [Manual Access](digging-deeper/manual-access.md)
   - [Custom Storage Backends](digging-deeper/custom-storage.md)
+  - [Renaming Keys](digging-deeper/renaming-keys.md)
   - [Seeding from a Legacy File](digging-deeper/seeding-from-legacy.md)
   - [Error Handling](digging-deeper/error-handling.md)
   - [Generated Files](digging-deeper/generated-files.md)
