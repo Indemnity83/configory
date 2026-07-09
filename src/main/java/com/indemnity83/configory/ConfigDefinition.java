@@ -22,7 +22,7 @@ public final class ConfigDefinition<T> {
     private final String description;
     private final boolean exposed;
     private final List<ConfigConstraint<T>> constraints;
-    private final List<ConfigPath> aliases;
+    private final List<ConfigPath> formerPaths;
 
     /**
      * Creates a definition. Constraints are defensively copied.
@@ -36,8 +36,8 @@ public final class ConfigDefinition<T> {
      * @param exposed whether this value is included in a generated command surface (the default;
      *     unset by {@code hidden()})
      * @param constraints the validation constraints applied in order
-     * @param aliases prior paths this key was stored at, searched in order when the primary path is
-     *     absent and stripped from the document once migrated
+     * @param formerPaths paths this key was formerly stored at, searched in order when the primary
+     *     path is absent and stripped from the document once migrated
      */
     public ConfigDefinition(
             ConfigPath path,
@@ -47,7 +47,7 @@ public final class ConfigDefinition<T> {
             String description,
             boolean exposed,
             List<ConfigConstraint<T>> constraints,
-            List<ConfigPath> aliases) {
+            List<ConfigPath> formerPaths) {
         this.path = Objects.requireNonNull(path, "path");
         this.type = Objects.requireNonNull(type, "type");
         this.valueClass = Objects.requireNonNull(valueClass, "valueClass");
@@ -55,7 +55,7 @@ public final class ConfigDefinition<T> {
         this.description = description == null ? "" : description;
         this.exposed = exposed;
         this.constraints = List.copyOf(new ArrayList<>(constraints));
-        this.aliases = List.copyOf(new ArrayList<>(aliases));
+        this.formerPaths = List.copyOf(new ArrayList<>(formerPaths));
     }
 
     /**
@@ -112,14 +112,14 @@ public final class ConfigDefinition<T> {
     }
 
     /**
-     * {@return the prior paths this key was stored at, in search order}
+     * {@return the paths this key was formerly stored at, in search order}
      *
      * <p>When the {@linkplain #path() primary path} is absent on load, these are searched in order;
      * the first present value that coerces and validates is adopted at the primary path, and every
-     * alias is stripped from the document.
+     * former path is stripped from the document.
      */
-    public List<ConfigPath> aliases() {
-        return aliases;
+    public List<ConfigPath> formerPaths() {
+        return formerPaths;
     }
 
     /**

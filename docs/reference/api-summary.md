@@ -82,7 +82,7 @@ See [Writing &amp; Saving](the-basics/writing-and-saving.md).
 config.defineFloat("core.speed_multiplier", 1.0f)  // shorthand: type + default
         .range(0.1f, 10.0f)              // min / max / range / minValueOf / maxValueOf
         .describe("Global speed multiplier.")
-        .alias("core.old_speed")         // migrate a value from a former path (repeatable)
+        .formerly("core.old_speed")      // migrate a value from a former path when renamed (repeatable)
         .validator((v, c) -> /* ... */)  // optional custom rule
         .register();                     // -> ConfigKey<Float>
 ```

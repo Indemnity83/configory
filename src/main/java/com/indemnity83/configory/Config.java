@@ -44,7 +44,7 @@ public final class Config {
     private JsonObject document;
     private boolean dirty;
     private final Map<ConfigPath, ConfigDefinition<?>> definitions = new LinkedHashMap<>();
-    private final Map<ConfigPath, ConfigPath> aliasOwners = new LinkedHashMap<>();
+    private final Map<ConfigPath, ConfigPath> formerPathOwners = new LinkedHashMap<>();
     private final List<Runnable> sanitizeHooks = new ArrayList<>();
     private final Set<ConfigPath> validating = new HashSet<>();
 
@@ -292,40 +292,40 @@ public final class Config {
      * @param <T> the value type
      * @return a {@link ConfigKey} that can be used with {@link #get(ConfigKey)} and
      *     {@link #set(ConfigKey, Object)}
-     * @throws ConfigException if a definition is already registered at the same path, or an alias
-     *     clashes with a registered path, another key's alias, or its own primary path
+     * @throws ConfigException if a definition is already registered at the same path, or a former
+     *     path clashes with a registered path, another key's former path, or its own primary path
      */
     public <T> ConfigKey<T> registerDefinition(ConfigDefinition<T> definition) {
         ConfigPath path = definition.path();
         if (definitions.containsKey(path)) {
             throw new ConfigException("Duplicate config definition: " + path.fullPath());
         }
-        if (aliasOwners.containsKey(path)) {
-            throw new ConfigException("Config path '" + path.fullPath() + "' is already an alias of '"
-                    + aliasOwners.get(path).fullPath() + "'.");
+        if (formerPathOwners.containsKey(path)) {
+            throw new ConfigException("Config path '" + path.fullPath() + "' is already the former path of '"
+                    + formerPathOwners.get(path).fullPath() + "'.");
         }
-        for (ConfigPath alias : definition.aliases()) {
-            assertAliasIsFree(path, alias);
+        for (ConfigPath former : definition.formerPaths()) {
+            assertFormerPathFree(path, former);
         }
         definitions.put(path, definition);
-        for (ConfigPath alias : definition.aliases()) {
-            aliasOwners.put(alias, path);
+        for (ConfigPath former : definition.formerPaths()) {
+            formerPathOwners.put(former, path);
         }
         return new ConfigKey<>(id, definition);
     }
 
-    private void assertAliasIsFree(ConfigPath owner, ConfigPath alias) {
-        if (nestsWithin(alias, owner) || nestsWithin(owner, alias)) {
+    private void assertFormerPathFree(ConfigPath owner, ConfigPath former) {
+        if (nestsWithin(former, owner) || nestsWithin(owner, former)) {
             throw new ConfigException(
-                    "Alias '" + alias.fullPath() + "' overlaps its own key '" + owner.fullPath() + "'.");
+                    "Former path '" + former.fullPath() + "' overlaps its own key '" + owner.fullPath() + "'.");
         }
-        if (definitions.containsKey(alias)) {
-            throw new ConfigException("Alias '" + alias.fullPath() + "' clashes with a registered config key.");
+        if (definitions.containsKey(former)) {
+            throw new ConfigException("Former path '" + former.fullPath() + "' clashes with a registered config key.");
         }
-        ConfigPath existingOwner = aliasOwners.get(alias);
+        ConfigPath existingOwner = formerPathOwners.get(former);
         if (existingOwner != null) {
-            throw new ConfigException(
-                    "Alias '" + alias.fullPath() + "' is already an alias of '" + existingOwner.fullPath() + "'.");
+            throw new ConfigException("Former path '" + former.fullPath() + "' is already the former path of '"
+                    + existingOwner.fullPath() + "'.");
         }
     }
 
@@ -643,7 +643,7 @@ public final class Config {
         JsonObject document = documentOrLoad();
         JsonElement element = JsonPaths.get(document, definition.path());
         if (element == null || element.isJsonNull()) {
-            if (!adoptAlias(document, definition)) {
+            if (!adoptFormerValue(document, definition)) {
                 writeDefault(document, definition);
             }
         } else {
@@ -656,12 +656,12 @@ public final class Config {
                 writeDefault(document, definition);
             }
         }
-        stripAliases(document, definition);
+        stripFormerPaths(document, definition);
     }
 
-    private <T> boolean adoptAlias(JsonObject document, ConfigDefinition<T> definition) {
-        for (ConfigPath alias : definition.aliases()) {
-            JsonElement element = JsonPaths.get(document, alias);
+    private <T> boolean adoptFormerValue(JsonObject document, ConfigDefinition<T> definition) {
+        for (ConfigPath former : definition.formerPaths()) {
+            JsonElement element = JsonPaths.get(document, former);
             if (element == null || element.isJsonNull()) {
                 continue;
             }
@@ -673,26 +673,26 @@ public final class Config {
                     return true;
                 }
             } catch (ConfigException ignored) {
-                // fall through to the next alias
+                // fall through to the next former path
             }
         }
         return false;
     }
 
-    private void stripAliases(JsonObject document, ConfigDefinition<?> definition) {
-        for (ConfigPath alias : definition.aliases()) {
-            if (isAncestorOfRegisteredKey(alias)) {
+    private void stripFormerPaths(JsonObject document, ConfigDefinition<?> definition) {
+        for (ConfigPath former : definition.formerPaths()) {
+            if (isAncestorOfRegisteredKey(former)) {
                 continue;
             }
-            if (JsonPaths.remove(document, alias)) {
+            if (JsonPaths.remove(document, former)) {
                 dirty = true;
             }
         }
     }
 
-    private boolean isAncestorOfRegisteredKey(ConfigPath alias) {
+    private boolean isAncestorOfRegisteredKey(ConfigPath former) {
         for (ConfigPath key : definitions.keySet()) {
-            if (!key.equals(alias) && nestsWithin(alias, key)) {
+            if (!key.equals(former) && nestsWithin(former, key)) {
                 return true;
             }
         }

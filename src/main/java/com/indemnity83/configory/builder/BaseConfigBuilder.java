@@ -24,7 +24,7 @@ public abstract class BaseConfigBuilder<T, SELF extends BaseConfigBuilder<T, SEL
     protected String description = "";
     protected boolean exposed = true;
     protected final List<ConfigConstraint<T>> constraints = new ArrayList<>();
-    protected final List<ConfigPath> aliases = new ArrayList<>();
+    protected final List<ConfigPath> formerPaths = new ArrayList<>();
 
     /**
      * Creates a builder for a specific type.
@@ -93,18 +93,18 @@ public abstract class BaseConfigBuilder<T, SELF extends BaseConfigBuilder<T, SEL
     }
 
     /**
-     * Adds a prior path this key was stored at, so a renamed key migrates its old value.
+     * Adds a former path this key was stored at, so a renamed key migrates its old value.
      *
-     * <p>On load, when the primary path holds no value, declared aliases are searched in the order
-     * added; the first present value that coerces and validates is adopted at the primary path.
-     * Every alias is then stripped from the document, so the rename settles on the next
+     * <p>On load, when the primary path holds no value, declared former paths are searched in the
+     * order added; the first present value that coerces and validates is adopted at the primary path.
+     * Every former path is then stripped from the document, so the rename settles on the next
      * {@code save()}. Repeatable to declare more than one former name.
      *
      * @param path the former dotted path, e.g. {@code "core.old_speed"}
      * @return this builder
      */
-    public SELF alias(String path) {
-        this.aliases.add(ConfigPath.parse(path));
+    public SELF formerly(String path) {
+        this.formerPaths.add(ConfigPath.parse(path));
         return self();
     }
 
@@ -133,7 +133,7 @@ public abstract class BaseConfigBuilder<T, SELF extends BaseConfigBuilder<T, SEL
             throw new ConfigException("Config key " + path.fullPath() + " is missing a default value.");
         }
         ConfigDefinition<T> definition = new ConfigDefinition<>(
-                path, type, valueClass, defaultValue, description, exposed, constraints, aliases);
+                path, type, valueClass, defaultValue, description, exposed, constraints, formerPaths);
         return config.registerDefinition(definition);
     }
 }

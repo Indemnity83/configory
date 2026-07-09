@@ -7,7 +7,7 @@ import com.google.gson.JsonPrimitive;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class ConfigAliasMigrationTest {
+class ConfigRenameMigrationTest {
 
     private InMemoryConfigStorage storage;
     private Config config;
@@ -25,10 +25,10 @@ class ConfigAliasMigrationTest {
     }
 
     @Test
-    void adoptsAnAliasValueWhenThePrimaryIsAbsent() {
+    void adoptsAFormerValueWhenThePrimaryIsAbsent() {
         seed("core.old_speed", new JsonPrimitive(3.0f));
         ConfigKey<Float> speed = config.defineFloat("core.speed_multiplier", 1.0f)
-                .alias("core.old_speed")
+                .formerly("core.old_speed")
                 .register();
 
         config.load();
@@ -38,10 +38,10 @@ class ConfigAliasMigrationTest {
     }
 
     @Test
-    void stripsTheAliasFromTheDocumentAfterMigrating() {
+    void stripsTheFormerPathFromTheDocumentAfterMigrating() {
         seed("core.old_speed", new JsonPrimitive(3.0f));
         config.defineFloat("core.speed_multiplier", 1.0f)
-                .alias("core.old_speed")
+                .formerly("core.old_speed")
                 .register();
 
         config.load();
@@ -51,14 +51,14 @@ class ConfigAliasMigrationTest {
     }
 
     @Test
-    void stripsAStaleAliasEvenWhenThePrimaryAlreadyHasAValue() {
+    void stripsAStaleFormerPathEvenWhenThePrimaryAlreadyHasAValue() {
         JsonObject document = new JsonObject();
         JsonPaths.set(document, ConfigPath.parse("core.speed_multiplier"), new JsonPrimitive(2.0f));
         JsonPaths.set(document, ConfigPath.parse("core.old_speed"), new JsonPrimitive(9.0f));
         storage.seed("logistics", document);
 
         ConfigKey<Float> speed = config.defineFloat("core.speed_multiplier", 1.0f)
-                .alias("core.old_speed")
+                .formerly("core.old_speed")
                 .register();
 
         config.load();
@@ -68,15 +68,15 @@ class ConfigAliasMigrationTest {
     }
 
     @Test
-    void searchesAliasesInDeclarationOrder() {
+    void searchesFormerPathsInDeclarationOrder() {
         JsonObject document = new JsonObject();
         JsonPaths.set(document, ConfigPath.parse("legacy.speed"), new JsonPrimitive(5.0f));
         JsonPaths.set(document, ConfigPath.parse("core.old_speed"), new JsonPrimitive(3.0f));
         storage.seed("logistics", document);
 
         ConfigKey<Float> speed = config.defineFloat("core.speed_multiplier", 1.0f)
-                .alias("core.old_speed")
-                .alias("legacy.speed")
+                .formerly("core.old_speed")
+                .formerly("legacy.speed")
                 .register();
 
         config.load();
@@ -85,7 +85,7 @@ class ConfigAliasMigrationTest {
     }
 
     @Test
-    void fallsThroughToTheNextAliasWhenAValueFailsValidation() {
+    void fallsThroughToTheNextFormerPathWhenAValueFailsValidation() {
         JsonObject document = new JsonObject();
         JsonPaths.set(document, ConfigPath.parse("core.old_speed"), new JsonPrimitive(999.0f));
         JsonPaths.set(document, ConfigPath.parse("legacy.speed"), new JsonPrimitive(4.0f));
@@ -93,8 +93,8 @@ class ConfigAliasMigrationTest {
 
         ConfigKey<Float> speed = config.defineFloat("core.speed_multiplier", 1.0f)
                 .range(0.1f, 10.0f)
-                .alias("core.old_speed")
-                .alias("legacy.speed")
+                .formerly("core.old_speed")
+                .formerly("legacy.speed")
                 .register();
 
         config.load();
@@ -103,10 +103,10 @@ class ConfigAliasMigrationTest {
     }
 
     @Test
-    void fallsBackToTheDefaultWhenNoAliasHasAUsableValue() {
+    void fallsBackToTheDefaultWhenNoFormerPathHasAUsableValue() {
         seed("core.old_speed", new JsonPrimitive("not-a-number"));
         ConfigKey<Float> speed = config.defineFloat("core.speed_multiplier", 1.0f)
-                .alias("core.old_speed")
+                .formerly("core.old_speed")
                 .register();
 
         config.load();
@@ -118,7 +118,7 @@ class ConfigAliasMigrationTest {
     void theRenameSettlesOnDiskAfterSave() {
         seed("core.old_speed", new JsonPrimitive(3.0f));
         config.defineFloat("core.speed_multiplier", 1.0f)
-                .alias("core.old_speed")
+                .formerly("core.old_speed")
                 .register();
 
         config.load().save();
@@ -132,43 +132,43 @@ class ConfigAliasMigrationTest {
     }
 
     @Test
-    void anAliasThatClashesWithARegisteredKeyFailsFast() {
+    void aFormerPathThatClashesWithARegisteredKeyFailsFast() {
         config.defineFloat("core.speed", 1.0f).register();
 
         ConfigException ex = assertThrows(ConfigException.class, () -> config.defineFloat("core.speed_multiplier", 1.0f)
-                .alias("core.speed")
+                .formerly("core.speed")
                 .register());
         assertTrue(ex.getMessage().contains("core.speed"));
     }
 
     @Test
-    void aLaterKeyWhosePathIsAnExistingAliasFailsFast() {
+    void aLaterKeyWhosePathIsAnExistingFormerPathFailsFast() {
         config.defineFloat("core.speed_multiplier", 1.0f)
-                .alias("core.old_speed")
+                .formerly("core.old_speed")
                 .register();
 
         ConfigException ex = assertThrows(ConfigException.class, () -> config.defineFloat("core.old_speed", 1.0f)
                 .register());
-        assertTrue(ex.getMessage().contains("alias"));
+        assertTrue(ex.getMessage().contains("former path"));
     }
 
     @Test
-    void twoKeysSharingAnAliasFailFast() {
+    void twoKeysSharingAFormerPathFailFast() {
         config.defineFloat("core.speed_multiplier", 1.0f)
-                .alias("core.old_speed")
+                .formerly("core.old_speed")
                 .register();
 
         ConfigException ex = assertThrows(ConfigException.class, () -> config.defineFloat("core.velocity", 1.0f)
-                .alias("core.old_speed")
+                .formerly("core.old_speed")
                 .register());
-        assertTrue(ex.getMessage().contains("already an alias"));
+        assertTrue(ex.getMessage().contains("already the former path"));
     }
 
     @Test
-    void anAliasThatOverlapsItsOwnKeyFailsFast() {
+    void aFormerPathThatOverlapsItsOwnKeyFailsFast() {
         ConfigException ex = assertThrows(
                 ConfigException.class,
-                () -> config.defineFloat("core.speed", 1.0f).alias("core").register());
+                () -> config.defineFloat("core.speed", 1.0f).formerly("core").register());
         assertTrue(ex.getMessage().contains("overlaps"));
     }
 }
