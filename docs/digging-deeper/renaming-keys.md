@@ -48,10 +48,10 @@ config.defineFloat("core.speed_multiplier", 1.0f)
 - **Former paths are same-file.** A path resolves within the config's own document; a `Config` is one
   file. To move a value between files, give the new file its own config and
   [seed it](digging-deeper/seeding-from-legacy.md).
-- **Clashes fail fast.** Registration throws `ConfigException` when a former path would collide — one
-  equal to a registered key's path, two keys sharing a former path, a later key whose path is an
-  existing former path, or a former path that overlaps its own key's path. This surfaces a rename
-  mistake at startup instead of silently dropping data.
+- **Clashes fail fast.** Registration throws `ConfigException` when a former path would overlap
+  another path — whether by an exact match or by nesting inside or around it — be that a registered
+  key, another key's former path, or its own key's path. This surfaces a rename mistake at startup
+  instead of silently dropping data.
 - **Retire former paths eventually.** A former path only matters until every file has migrated. Once
   you're confident old files are gone, drop the `.formerly(...)` call.
 

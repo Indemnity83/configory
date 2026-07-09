@@ -161,7 +161,7 @@ class ConfigRenameMigrationTest {
         ConfigException ex = assertThrows(ConfigException.class, () -> config.defineFloat("core.velocity", 1.0f)
                 .formerly("core.old_speed")
                 .register());
-        assertTrue(ex.getMessage().contains("already the former path"));
+        assertTrue(ex.getMessage().contains("former path"));
     }
 
     @Test
@@ -169,6 +169,25 @@ class ConfigRenameMigrationTest {
         ConfigException ex = assertThrows(
                 ConfigException.class,
                 () -> config.defineFloat("core.speed", 1.0f).formerly("core").register());
+        assertTrue(ex.getMessage().contains("overlaps"));
+    }
+
+    @Test
+    void aFormerPathThatIsAnAncestorOfARegisteredKeyFailsFast() {
+        config.defineFloat("core.other_key", 1.0f).register();
+
+        ConfigException ex = assertThrows(
+                ConfigException.class,
+                () -> config.defineFloat("engines.speed", 1.0f).formerly("core").register());
+        assertTrue(ex.getMessage().contains("overlaps"));
+    }
+
+    @Test
+    void aLaterKeyNestedUnderAnExistingFormerPathFailsFast() {
+        config.defineFloat("engines.speed", 1.0f).formerly("core").register();
+
+        ConfigException ex = assertThrows(ConfigException.class, () -> config.defineFloat("core.other_key", 1.0f)
+                .register());
         assertTrue(ex.getMessage().contains("overlaps"));
     }
 }

@@ -36,8 +36,8 @@ public final class ConfigDefinition<T> {
      * @param exposed whether this value is included in a generated command surface (the default;
      *     unset by {@code hidden()})
      * @param constraints the validation constraints applied in order
-     * @param formerPaths paths this key was formerly stored at, searched in order when the primary
-     *     path is absent and stripped from the document once migrated
+     * @param formerPaths paths this key was formerly stored at; searched in order when the primary
+     *     path is absent, and stripped from the document on every load
      */
     public ConfigDefinition(
             ConfigPath path,
@@ -114,9 +114,9 @@ public final class ConfigDefinition<T> {
     /**
      * {@return the paths this key was formerly stored at, in search order}
      *
-     * <p>When the {@linkplain #path() primary path} is absent on load, these are searched in order;
-     * the first present value that coerces and validates is adopted at the primary path, and every
-     * former path is stripped from the document.
+     * <p>When the {@linkplain #path() primary path} is absent on load, these are searched in order and
+     * the first present value that coerces and validates is adopted at the primary path. Every former
+     * path is then stripped from the document on each load, whether or not a value was migrated.
      */
     public List<ConfigPath> formerPaths() {
         return formerPaths;

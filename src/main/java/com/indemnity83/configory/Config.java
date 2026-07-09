@@ -300,9 +300,12 @@ public final class Config {
         if (definitions.containsKey(path)) {
             throw new ConfigException("Duplicate config definition: " + path.fullPath());
         }
-        if (formerPathOwners.containsKey(path)) {
-            throw new ConfigException("Config path '" + path.fullPath() + "' is already the former path of '"
-                    + formerPathOwners.get(path).fullPath() + "'.");
+        for (Map.Entry<ConfigPath, ConfigPath> owned : formerPathOwners.entrySet()) {
+            if (overlaps(path, owned.getKey())) {
+                throw new ConfigException("Config path '" + path.fullPath() + "' overlaps the former path '"
+                        + owned.getKey().fullPath() + "' of '"
+                        + owned.getValue().fullPath() + "'.");
+            }
         }
         for (ConfigPath former : definition.formerPaths()) {
             assertFormerPathFree(path, former);
@@ -315,18 +318,27 @@ public final class Config {
     }
 
     private void assertFormerPathFree(ConfigPath owner, ConfigPath former) {
-        if (nestsWithin(former, owner) || nestsWithin(owner, former)) {
+        if (overlaps(former, owner)) {
             throw new ConfigException(
                     "Former path '" + former.fullPath() + "' overlaps its own key '" + owner.fullPath() + "'.");
         }
-        if (definitions.containsKey(former)) {
-            throw new ConfigException("Former path '" + former.fullPath() + "' clashes with a registered config key.");
+        for (ConfigPath key : definitions.keySet()) {
+            if (overlaps(former, key)) {
+                throw new ConfigException("Former path '" + former.fullPath() + "' overlaps the registered config key '"
+                        + key.fullPath() + "'.");
+            }
         }
-        ConfigPath existingOwner = formerPathOwners.get(former);
-        if (existingOwner != null) {
-            throw new ConfigException("Former path '" + former.fullPath() + "' is already the former path of '"
-                    + existingOwner.fullPath() + "'.");
+        for (Map.Entry<ConfigPath, ConfigPath> owned : formerPathOwners.entrySet()) {
+            if (overlaps(former, owned.getKey())) {
+                throw new ConfigException("Former path '" + former.fullPath() + "' overlaps the former path '"
+                        + owned.getKey().fullPath() + "' of '"
+                        + owned.getValue().fullPath() + "'.");
+            }
         }
+    }
+
+    private static boolean overlaps(ConfigPath a, ConfigPath b) {
+        return nestsWithin(a, b) || nestsWithin(b, a);
     }
 
     private static boolean nestsWithin(ConfigPath ancestor, ConfigPath descendant) {
@@ -681,22 +693,10 @@ public final class Config {
 
     private void stripFormerPaths(JsonObject document, ConfigDefinition<?> definition) {
         for (ConfigPath former : definition.formerPaths()) {
-            if (isAncestorOfRegisteredKey(former)) {
-                continue;
-            }
             if (JsonPaths.remove(document, former)) {
                 dirty = true;
             }
         }
-    }
-
-    private boolean isAncestorOfRegisteredKey(ConfigPath former) {
-        for (ConfigPath key : definitions.keySet()) {
-            if (!key.equals(former) && nestsWithin(former, key)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private void writeDefault(JsonObject document, ConfigDefinition<?> definition) {
