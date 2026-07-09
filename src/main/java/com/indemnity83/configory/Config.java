@@ -307,12 +307,16 @@ public final class Config {
                         + owned.getValue().fullPath() + "'.");
             }
         }
-        for (ConfigPath former : definition.formerPaths()) {
-            assertFormerPathFree(path, former);
+        for (var source : definition.formerSources()) {
+            if (source.path() != null) {
+                assertFormerPathFree(path, source.path());
+            }
         }
         definitions.put(path, definition);
-        for (ConfigPath former : definition.formerPaths()) {
-            formerPathOwners.put(former, path);
+        for (var source : definition.formerSources()) {
+            if (source.path() != null) {
+                formerPathOwners.put(source.path(), path);
+            }
         }
         return new ConfigKey<>(id, definition);
     }
@@ -672,28 +676,37 @@ public final class Config {
     }
 
     private <T> boolean adoptFormerValue(JsonObject document, ConfigDefinition<T> definition) {
-        for (ConfigPath former : definition.formerPaths()) {
-            JsonElement element = JsonPaths.get(document, former);
-            if (element == null || element.isJsonNull()) {
-                continue;
-            }
+        for (var source : definition.formerSources()) {
+            T value;
             try {
-                T value = ConfigValues.fromJson(element, definition.type(), definition.valueClass());
-                if (definition.validate(value, this).valid()) {
-                    JsonPaths.set(document, definition.path(), ConfigValues.toJson(value));
-                    dirty = true;
-                    return true;
-                }
-            } catch (ConfigException ignored) {
-                // fall through to the next former path
+                value = produceFrom(document, definition, source);
+            } catch (RuntimeException ignored) {
+                continue; // this source failed; try the next
+            }
+            if (value != null && definition.validate(value, this).valid()) {
+                JsonPaths.set(document, definition.path(), ConfigValues.toJson(value));
+                dirty = true;
+                return true;
             }
         }
         return false;
     }
 
+    private <T> T produceFrom(
+            JsonObject document, ConfigDefinition<T> definition, ConfigDefinition.FormerSource<T> source) {
+        if (source.supplier() != null) {
+            return source.supplier().get();
+        }
+        JsonElement element = JsonPaths.get(document, source.path());
+        if (element == null || element.isJsonNull()) {
+            return null;
+        }
+        return ConfigValues.fromJson(element, definition.type(), definition.valueClass());
+    }
+
     private void stripFormerPaths(JsonObject document, ConfigDefinition<?> definition) {
-        for (ConfigPath former : definition.formerPaths()) {
-            if (JsonPaths.remove(document, former)) {
+        for (var source : definition.formerSources()) {
+            if (source.path() != null && JsonPaths.remove(document, source.path())) {
                 dirty = true;
             }
         }

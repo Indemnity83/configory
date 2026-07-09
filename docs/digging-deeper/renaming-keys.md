@@ -43,6 +43,31 @@ config.defineFloat("core.speed_multiplier", 1.0f)
         .register();
 ```
 
+## Migrating from a source Configory doesn't manage
+
+Some values don't come from a former path in the same file — they come from another config, or need
+to be computed. Pass a supplier instead of a path and it runs when the key is unset, producing the
+value to migrate in:
+
+```java
+config.defineDouble("engines.max_output", 10.0)
+        .formerly("engines.old_output")                 // try the old path first
+        .formerly(() -> LegacyBridge.readMaxOutput())   // else compute or borrow it
+        .register();                                     // else fall back to 10.0
+```
+
+Suppliers slot into the same ordered search as former paths: tried in declaration order, only when
+the primary path is unset, and the first value that passes validation wins. The adopted value is
+persisted on the next `save()`, so **the supplier runs once** — on the first load where the key is
+unset — and never again. A supplier that returns `null` or throws is skipped, falling through to the
+next source or the default, so a flaky source never breaks `load()`.
+
+> [!WARNING]
+> A supplier that reads **another Configory config** depends on that config already being loaded when
+> this one loads. Configory does not order loads for you — this is an escape hatch you wire yourself.
+> For a full move from a different config system, prefer
+> [Seeding from a Legacy File](digging-deeper/seeding-from-legacy.md).
+
 ## Rules
 
 - **Former paths are same-file.** A path resolves within the config's own document; a `Config` is one

@@ -190,4 +190,116 @@ class ConfigRenameMigrationTest {
                 .register());
         assertTrue(ex.getMessage().contains("overlaps"));
     }
+
+    @Test
+    void adoptsASuppliedValueWhenThePrimaryIsAbsent() {
+        ConfigKey<Float> speed = config.defineFloat("core.speed_multiplier", 1.0f)
+                .formerly(() -> 7.0f)
+                .register();
+
+        config.load();
+
+        assertEquals(7.0f, config.get(speed));
+        assertTrue(config.isDirty());
+    }
+
+    @Test
+    void doesNotCallTheSupplierWhenThePrimaryIsPresent() {
+        seed("core.speed_multiplier", new JsonPrimitive(2.0f));
+        int[] calls = {0};
+        ConfigKey<Float> speed = config.defineFloat("core.speed_multiplier", 1.0f)
+                .formerly(() -> {
+                    calls[0]++;
+                    return 7.0f;
+                })
+                .register();
+
+        config.load();
+
+        assertEquals(2.0f, config.get(speed));
+        assertEquals(0, calls[0]);
+    }
+
+    @Test
+    void runsTheSupplierOnceThenSettlesOnDisk() {
+        int[] calls = {0};
+        config.defineFloat("core.speed_multiplier", 1.0f)
+                .formerly(() -> {
+                    calls[0]++;
+                    return 7.0f;
+                })
+                .register();
+
+        config.load().save();
+        config.discardAndReload();
+
+        assertEquals(1, calls[0]);
+        assertEquals(7.0f, config.get("core.speed_multiplier").asFloat());
+    }
+
+    @Test
+    void fallsThroughWhenTheSupplierReturnsNull() {
+        ConfigKey<Float> speed = config.defineFloat("core.speed_multiplier", 1.0f)
+                .formerly(() -> null)
+                .register();
+
+        config.load();
+
+        assertEquals(1.0f, config.get(speed));
+    }
+
+    @Test
+    void fallsThroughWhenTheSupplierThrows() {
+        ConfigKey<Float> speed = config.defineFloat("core.speed_multiplier", 1.0f)
+                .formerly(() -> {
+                    throw new IllegalStateException("boom");
+                })
+                .register();
+
+        config.load();
+
+        assertEquals(1.0f, config.get(speed));
+    }
+
+    @Test
+    void fallsThroughWhenTheSuppliedValueFailsValidation() {
+        ConfigKey<Float> speed = config.defineFloat("core.speed_multiplier", 1.0f)
+                .range(0.1f, 10.0f)
+                .formerly(() -> 999.0f)
+                .register();
+
+        config.load();
+
+        assertEquals(1.0f, config.get(speed));
+    }
+
+    @Test
+    void triesAFormerPathBeforeASupplierInDeclarationOrder() {
+        seed("core.old_speed", new JsonPrimitive(3.0f));
+        int[] calls = {0};
+        ConfigKey<Float> speed = config.defineFloat("core.speed_multiplier", 1.0f)
+                .formerly("core.old_speed")
+                .formerly(() -> {
+                    calls[0]++;
+                    return 7.0f;
+                })
+                .register();
+
+        config.load();
+
+        assertEquals(3.0f, config.get(speed));
+        assertEquals(0, calls[0]);
+    }
+
+    @Test
+    void fallsThroughFromAnAbsentFormerPathToASupplier() {
+        ConfigKey<Float> speed = config.defineFloat("core.speed_multiplier", 1.0f)
+                .formerly("core.old_speed")
+                .formerly(() -> 7.0f)
+                .register();
+
+        config.load();
+
+        assertEquals(7.0f, config.get(speed));
+    }
 }
