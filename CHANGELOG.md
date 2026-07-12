@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/Indemnity83/configory/compare/configory-v0.2.0...configory-v0.2.1) (2026-07-12)
+
+
+### Added
+
+* Implement migration for renamed config keys with formerly() ([#59](https://github.com/Indemnity83/configory/issues/59)) ([4d91b85](https://github.com/Indemnity83/configory/commit/4d91b85388b0621d1ce71e16ee125322a3a1e310))
+
 ## [0.2.0](https://github.com/Indemnity83/configory/compare/configory-v0.1.0...configory-v0.2.0) (2026-07-08)
 
 
