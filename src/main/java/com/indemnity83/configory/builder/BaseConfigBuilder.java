@@ -1,8 +1,10 @@
 package com.indemnity83.configory.builder;
 
 import com.indemnity83.configory.*;
+import com.indemnity83.configory.ConfigDefinition.FormerSource;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Shared fluent builder logic common to every value type.
@@ -24,6 +26,7 @@ public abstract class BaseConfigBuilder<T, SELF extends BaseConfigBuilder<T, SEL
     protected String description = "";
     protected boolean exposed = true;
     protected final List<ConfigConstraint<T>> constraints = new ArrayList<>();
+    protected final List<FormerSource<T>> formerSources = new ArrayList<>();
 
     /**
      * Creates a builder for a specific type.
@@ -92,6 +95,40 @@ public abstract class BaseConfigBuilder<T, SELF extends BaseConfigBuilder<T, SEL
     }
 
     /**
+     * Adds a former path this key was stored at, so a renamed key migrates its old value.
+     *
+     * <p>On load, when the primary path holds no value, declared sources are tried in the order added;
+     * the first present value that coerces and validates is adopted at the primary path. Every former
+     * path is then stripped from the document, so the rename settles on the next {@code save()}.
+     * Repeatable, and mixable with {@link #formerly(Supplier)}, to declare more than one source.
+     *
+     * @param path the former dotted path, e.g. {@code "core.old_speed"}
+     * @return this builder
+     */
+    public SELF formerly(String path) {
+        this.formerSources.add(FormerSource.ofPath(ConfigPath.parse(path)));
+        return self();
+    }
+
+    /**
+     * Adds a supplier that produces this key's value when its primary path is unset — for migrating
+     * from a source Configory does not manage, such as another config or a computed value.
+     *
+     * <p>On load, when the primary path holds no value, declared sources are tried in the order added.
+     * The supplier is called only then; a returned value that passes validation is adopted at the
+     * primary path and persisted on the next {@code save()}, so the supplier runs once. A supplier
+     * that returns {@code null} or throws is skipped, falling through to the next source or the
+     * default. Repeatable, and mixable with {@link #formerly(String)}.
+     *
+     * @param value produces the value to migrate in, or {@code null} to contribute nothing
+     * @return this builder
+     */
+    public SELF formerly(Supplier<T> value) {
+        this.formerSources.add(FormerSource.ofSupplier(value));
+        return self();
+    }
+
+    /**
      * Excludes this value from the generated command surface.
      *
      * <p>Opt-out: every key appears in the {@code list}/{@code get}/{@code set} commands built by
@@ -115,8 +152,8 @@ public abstract class BaseConfigBuilder<T, SELF extends BaseConfigBuilder<T, SEL
         if (defaultValue == null) {
             throw new ConfigException("Config key " + path.fullPath() + " is missing a default value.");
         }
-        ConfigDefinition<T> definition =
-                new ConfigDefinition<>(path, type, valueClass, defaultValue, description, exposed, constraints);
+        ConfigDefinition<T> definition = new ConfigDefinition<>(
+                path, type, valueClass, defaultValue, description, exposed, constraints, formerSources);
         return config.registerDefinition(definition);
     }
 }

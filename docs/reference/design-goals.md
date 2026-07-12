@@ -25,14 +25,12 @@ Possible future additions, roughly in the spirit of the goals above:
 
 - generated Markdown docs
 - generated JSON schema
-- config command helpers
 - config screen metadata
 - change listeners with `.onChange(...)`
 - client/server sync metadata
 - restart-required flags
 - JSON5 / TOML storage backends
 - list and object config values
-- migration helpers for renamed keys
 
 > [!NOTE]
 > These are directions, not commitments. Some are already reflected in gaps noted while writing

@@ -3,6 +3,7 @@ package com.indemnity83.configory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 /**
  * The immutable specification of a single config value: its path, type, default, description, and
@@ -15,6 +16,26 @@ import java.util.Objects;
  * @param <T> the value type
  */
 public final class ConfigDefinition<T> {
+
+    /**
+     * A place a key's value is migrated from when its primary path is unset: either a former
+     * {@code path} in the same document, or a {@code supplier} that computes the value. Exactly one is
+     * non-null.
+     *
+     * @param path the former dotted path, or null for a supplier source
+     * @param supplier the value producer, or null for a path source
+     * @param <T> the value type
+     */
+    public record FormerSource<T>(ConfigPath path, Supplier<T> supplier) {
+        public static <T> FormerSource<T> ofPath(ConfigPath path) {
+            return new FormerSource<>(path, null);
+        }
+
+        public static <T> FormerSource<T> ofSupplier(Supplier<T> supplier) {
+            return new FormerSource<>(null, supplier);
+        }
+    }
+
     private final ConfigPath path;
     private final ConfigType type;
     private final Class<T> valueClass;
@@ -22,6 +43,7 @@ public final class ConfigDefinition<T> {
     private final String description;
     private final boolean exposed;
     private final List<ConfigConstraint<T>> constraints;
+    private final List<FormerSource<T>> formerSources;
 
     /**
      * Creates a definition. Constraints are defensively copied.
@@ -35,6 +57,8 @@ public final class ConfigDefinition<T> {
      * @param exposed whether this value is included in a generated command surface (the default;
      *     unset by {@code hidden()})
      * @param constraints the validation constraints applied in order
+     * @param formerSources places this key's value is migrated from when the primary path is unset;
+     *     tried in order, and any path sources are stripped from the document on every load
      */
     public ConfigDefinition(
             ConfigPath path,
@@ -43,7 +67,8 @@ public final class ConfigDefinition<T> {
             T defaultValue,
             String description,
             boolean exposed,
-            List<ConfigConstraint<T>> constraints) {
+            List<ConfigConstraint<T>> constraints,
+            List<FormerSource<T>> formerSources) {
         this.path = Objects.requireNonNull(path, "path");
         this.type = Objects.requireNonNull(type, "type");
         this.valueClass = Objects.requireNonNull(valueClass, "valueClass");
@@ -51,6 +76,7 @@ public final class ConfigDefinition<T> {
         this.description = description == null ? "" : description;
         this.exposed = exposed;
         this.constraints = List.copyOf(new ArrayList<>(constraints));
+        this.formerSources = List.copyOf(new ArrayList<>(formerSources));
     }
 
     /**
@@ -104,6 +130,18 @@ public final class ConfigDefinition<T> {
      */
     public List<ConfigConstraint<T>> constraints() {
         return constraints;
+    }
+
+    /**
+     * {@return the places this key's value is migrated from when unset, in search order}
+     *
+     * <p>When the {@linkplain #path() primary path} is absent on load, these sources are tried in
+     * order and the first that yields a value passing validation is adopted at the primary path. Any
+     * path source is then stripped from the document on each load, whether or not a value was
+     * migrated; supplier sources have nothing to strip.
+     */
+    public List<FormerSource<T>> formerSources() {
+        return formerSources;
     }
 
     /**

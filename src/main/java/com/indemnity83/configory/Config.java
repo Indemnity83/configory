@@ -44,6 +44,7 @@ public final class Config {
     private JsonObject document;
     private boolean dirty;
     private final Map<ConfigPath, ConfigDefinition<?>> definitions = new LinkedHashMap<>();
+    private final Map<ConfigPath, ConfigPath> formerPathOwners = new LinkedHashMap<>();
     private final List<Runnable> sanitizeHooks = new ArrayList<>();
     private final Set<ConfigPath> validating = new HashSet<>();
 
@@ -291,15 +292,66 @@ public final class Config {
      * @param <T> the value type
      * @return a {@link ConfigKey} that can be used with {@link #get(ConfigKey)} and
      *     {@link #set(ConfigKey, Object)}
-     * @throws ConfigException if a definition is already registered at the same path
+     * @throws ConfigException if a definition is already registered at the same path, or a former
+     *     path clashes with a registered path, another key's former path, or its own primary path
      */
     public <T> ConfigKey<T> registerDefinition(ConfigDefinition<T> definition) {
-        if (definitions.containsKey(definition.path())) {
-            throw new ConfigException(
-                    "Duplicate config definition: " + definition.path().fullPath());
+        ConfigPath path = definition.path();
+        if (definitions.containsKey(path)) {
+            throw new ConfigException("Duplicate config definition: " + path.fullPath());
         }
-        definitions.put(definition.path(), definition);
+        for (Map.Entry<ConfigPath, ConfigPath> owned : formerPathOwners.entrySet()) {
+            if (overlaps(path, owned.getKey())) {
+                throw new ConfigException("Config path '" + path.fullPath() + "' overlaps the former path '"
+                        + owned.getKey().fullPath() + "' of '"
+                        + owned.getValue().fullPath() + "'.");
+            }
+        }
+        for (var source : definition.formerSources()) {
+            if (source.path() != null) {
+                assertFormerPathFree(path, source.path());
+            }
+        }
+        definitions.put(path, definition);
+        for (var source : definition.formerSources()) {
+            if (source.path() != null) {
+                formerPathOwners.put(source.path(), path);
+            }
+        }
         return new ConfigKey<>(id, definition);
+    }
+
+    private void assertFormerPathFree(ConfigPath owner, ConfigPath former) {
+        if (overlaps(former, owner)) {
+            throw new ConfigException(
+                    "Former path '" + former.fullPath() + "' overlaps its own key '" + owner.fullPath() + "'.");
+        }
+        for (ConfigPath key : definitions.keySet()) {
+            if (overlaps(former, key)) {
+                throw new ConfigException("Former path '" + former.fullPath() + "' overlaps the registered config key '"
+                        + key.fullPath() + "'.");
+            }
+        }
+        for (Map.Entry<ConfigPath, ConfigPath> owned : formerPathOwners.entrySet()) {
+            if (overlaps(former, owned.getKey())) {
+                throw new ConfigException("Former path '" + former.fullPath() + "' overlaps the former path '"
+                        + owned.getKey().fullPath() + "' of '"
+                        + owned.getValue().fullPath() + "'.");
+            }
+        }
+    }
+
+    private static boolean overlaps(ConfigPath a, ConfigPath b) {
+        return nestsWithin(a, b) || nestsWithin(b, a);
+    }
+
+    private static boolean nestsWithin(ConfigPath ancestor, ConfigPath descendant) {
+        List<String> a = ancestor.segments();
+        List<String> d = descendant.segments();
+        if (a.size() > d.size()) {
+            return false;
+        }
+        return a.equals(d.subList(0, a.size()));
     }
 
     /**
@@ -607,17 +659,56 @@ public final class Config {
         JsonObject document = documentOrLoad();
         JsonElement element = JsonPaths.get(document, definition.path());
         if (element == null || element.isJsonNull()) {
-            writeDefault(document, definition);
-            return;
-        }
-        try {
-            T value = ConfigValues.fromJson(element, definition.type(), definition.valueClass());
-            ValidationResult result = definition.validate(value, this);
-            if (!result.valid()) {
+            if (!adoptFormerValue(document, definition)) {
                 writeDefault(document, definition);
             }
-        } catch (ConfigException e) {
-            writeDefault(document, definition);
+        } else {
+            try {
+                T value = ConfigValues.fromJson(element, definition.type(), definition.valueClass());
+                if (!definition.validate(value, this).valid()) {
+                    writeDefault(document, definition);
+                }
+            } catch (ConfigException e) {
+                writeDefault(document, definition);
+            }
+        }
+        stripFormerPaths(document, definition);
+    }
+
+    private <T> boolean adoptFormerValue(JsonObject document, ConfigDefinition<T> definition) {
+        for (var source : definition.formerSources()) {
+            T value;
+            try {
+                value = produceFrom(document, definition, source);
+            } catch (RuntimeException ignored) {
+                continue; // this source failed; try the next
+            }
+            if (value != null && definition.validate(value, this).valid()) {
+                JsonPaths.set(document, definition.path(), ConfigValues.toJson(value));
+                dirty = true;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private <T> T produceFrom(
+            JsonObject document, ConfigDefinition<T> definition, ConfigDefinition.FormerSource<T> source) {
+        if (source.supplier() != null) {
+            return source.supplier().get();
+        }
+        JsonElement element = JsonPaths.get(document, source.path());
+        if (element == null || element.isJsonNull()) {
+            return null;
+        }
+        return ConfigValues.fromJson(element, definition.type(), definition.valueClass());
+    }
+
+    private void stripFormerPaths(JsonObject document, ConfigDefinition<?> definition) {
+        for (var source : definition.formerSources()) {
+            if (source.path() != null && JsonPaths.remove(document, source.path())) {
+                dirty = true;
+            }
         }
     }
 

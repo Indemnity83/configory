@@ -116,6 +116,8 @@ public static final ConfigKey<String> ENERGY_UNIT =
 | `describe(text)` | all types | human-readable description for tooling |
 | `validator(...)` | all types | custom validation rule |
 | `hidden()` | all types | exclude the key from the [generated command surface](digging-deeper/generated-commands.md) (keys are included by default) |
+| `formerly(path)` | all types | migrate a value from a [former path](digging-deeper/renaming-keys.md) when the key is renamed (repeatable) |
+| `formerly(supplier)` | all types | migrate a value from a [supplier](digging-deeper/renaming-keys.md) when the key is unset — for sources Configory doesn't manage (repeatable) |
 | `register()` | all types | build, register, and return the `ConfigKey<T>` |
 
 Bounds and custom rules are covered in [Validation](digging-deeper/validation.md); the
