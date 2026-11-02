@@ -29,7 +29,7 @@ java {
 }
 
 dependencies {
-    api 'com.google.code.gson:gson:2.14.0'
+    api 'com.google.code.gson:gson:2.15.0'
 
     // Brigadier is provided by Minecraft at runtime; the optional command builder compiles against it
     // but it is never bundled and consumers do not inherit it transitively.
